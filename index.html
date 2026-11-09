@@ -810,6 +810,10 @@ function exampleBanner(){
   if(!S.timetable.classes.some(c=>c.example))return '';
   return `<div class="banner"><div><b>These classes are examples.</b> <span class="plain">Add your real timetable and the whole plan rebuilds around it.</span></div><button class="btn thin" data-a="goto-week">Add my timetable</button></div>`;
 }
+function connectCard(){
+  if(!window.RR)return '';const c=window.RR.config();if(c.token)return '';
+  return `<div class="banner"><div><b>Connect GitHub to see your timetable.</b> <span class="plain">Your classes and Garmin numbers are saved in your private repository, and the app needs your key to read them.</span></div><button class="btn primary thin" data-a="connect">Connect GitHub</button></div>`;
+}
 function installCard(){
   if(!window.RR||!window.RR.canInstall())return '';
   return `<div class="banner"><div><b>Put this on your home screen.</b> <span class="plain">One tap and it opens like a normal app.</span></div><button class="btn primary thin" data-a="install">Install app</button></div>`;
@@ -821,7 +825,7 @@ function setupCard(){
 function viewToday(){
   const date=todayKey(),d=planWeek(monOf(date)).days[wdOf(date)],dt=parseD(date);
   const r=readinessFor(date);
-  return pageTop('Today',`${WDL[d.wd]} ${dt.getDate()} ${MON[dt.getMonth()]}`)+installCard()+setupCard()+exampleBanner()+
+  return pageTop('Today',`${WDL[d.wd]} ${dt.getDate()} ${MON[dt.getMonth()]}`)+installCard()+connectCard()+setupCard()+exampleBanner()+
     ((!r||editingSleep)?checkinCard(date):readinessCard(r,date))+
     workoutCard(d,r)+
     `<section class="card"><h2>Your day</h2><p class="plain">Built around your classes. Tick things off as you go.</p>${timeline(d,true)}</section>`;
@@ -1195,6 +1199,7 @@ let draft=null;
 function settingsSheet(){
   draft=draft||clone(S.settings);const d=draft;
   sheetOpen(`<div class="row between"><h2>Your plan</h2><button class="x" data-a="sheet-close" aria-label="Close">×</button></div>
+  ${window.RR?`<button class="btn primary full" data-a="connect">Connections: GitHub and AI</button>`:''}
   <div class="field"><span class="flabel">What do you want to achieve?</span>${chips('s-goal',Object.entries(GOALS).map(([k,v])=>[k,v.l]),d.goal)}</div>
   <div class="field"><span class="flabel">Gym days per week</span>${chips('s-days',[[2,'2'],[3,'3 (push, pull, legs)'],[4,'4 (+ arms)'],[5,'5 (+ full body)']],d.days)}</div>
   <div class="field"><span class="flabel">Your level</span>${chips('s-level',[['beginner','Under 1 year'],['intermediate','1–3 years'],['advanced','3+ years']],d.level)}</div>
@@ -1205,7 +1210,7 @@ function settingsSheet(){
   <div class="field"><label for="s-commute">Trip to uni (min)</label><input id="s-commute" type="number" min="0" max="120" value="${d.commute}" data-d="commute"></div><div class="field"><label for="s-gymTravel">Trip to gym (min)</label><input id="s-gymTravel" type="number" min="0" max="60" value="${d.gymTravel}" data-d="gymTravel"></div>
   <div class="field"><label for="s-studyH">Study per day (hours)</label><input id="s-studyH" type="number" min="0" max="8" step="0.5" value="${d.studyH}" data-d="studyH"></div></div>
   <button class="btn primary full" data-a="save-settings">Save and rebuild my week</button>
-  ${window.RR?`<button class="btn full" data-a="connect">Connections: GitHub and AI</button>`:`<div class="banner"><b>Your Garmin data</b><span class="plain">For now, copy your numbers in or add a screenshot on the Today page. Automatic sync from your watch is the next upgrade.</span></div>`}
+  ${window.RR?'':`<div class="banner"><b>Your Garmin data</b><span class="plain">For now, copy your numbers in or add a screenshot on the Today page. Automatic sync from your watch is the next upgrade.</span></div>`}
   ${S.notes.wishes.length?`<div class="card"><h3>Your wishlist</h3><ul style="margin:0;padding-left:18px">${S.notes.wishes.map(w=>`<li>${esc(w.text)}</li>`).join('')}</ul><p class="small">Ask Claude in your chat to build these.</p></div>`:''}
   ${S.notes.items.length?`<div class="card"><h3>What the coach remembers</h3><ul style="margin:0;padding-left:18px">${S.notes.items.map(w=>`<li>${esc(w.text)}</li>`).join('')}</ul></div>`:''}`);
 }

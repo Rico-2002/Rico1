@@ -342,7 +342,8 @@ th{color:var(--ink-3);font-weight:600}
     syncProblem(){
       if(!lastErr)return null;
       if(lastErr.status===401)return 'Sync stopped: GitHub refused your token. Renew it under Connections.';
-      if(lastErr.status===403||lastErr.status===404)return 'Sync stopped: GitHub cannot find your data. Check Connections.';
+      if(lastErr.status===403)return 'Sync stopped: your GitHub key can read but not save. Make a key with Contents set to Read and write.';
+      if(lastErr.status===404)return 'Sync stopped: your GitHub key cannot see Rico2. Make a key with Rico2 selected.';
       return 'Saved on this device. Will sync when back online.';
     },
     canInstall:()=>!!installEvent,
@@ -350,7 +351,14 @@ th{color:var(--ink-3);font-weight:600}
     async testGitHub(c){
       if(!c.owner||!c.token)return 'Enter your username and token first.';
       try{const r=await fetch(`https://api.github.com/repos/${encodeURIComponent(c.owner)}/${REPO}`,{headers:headers(c),cache:'no-store'});
-        if(r.ok)return 'Connected. Tap Save to start syncing.';
+        if(r.ok){
+          const path='connection-check.txt',u=url(c,path);
+          const old=await fetch(u,{headers:headers(c),cache:'no-store'});const sha=old.ok?(await old.json()).sha:undefined;
+          const w=await fetch(u,{method:'PUT',headers:{...headers(c),'Content-Type':'application/json'},body:JSON.stringify({message:'Check app connection',content:btoa('Rep Rhythm can save here.\n'),...(sha?{sha}:{})})});
+          if(w.ok||w.status===409||w.status===422)return 'Connected, and saving works. Tap Save.';
+          if(w.status===403)return 'This key can read Rico2 but cannot save. Make a new key with Contents set to Read and write.';
+          return 'Connected, but saving failed. Try again in a minute.';
+        }
         if(r.status===401)return 'GitHub refused this token. It may be wrong or expired.';
         if(r.status===404)return `I cannot find ${c.owner}/${REPO}. Check the username, and that the token has access to that repository.`;
         return 'GitHub answered with an error. Try again in a minute.';

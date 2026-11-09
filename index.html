@@ -343,7 +343,7 @@ th{color:var(--ink-3);font-weight:600}
     syncProblem(){
       if(!lastErr)return null;
       if(lastErr.status===401)return 'Sync stopped: GitHub refused your token. Renew it under Connections.';
-      if(lastErr.status===403)return 'Sync stopped: your GitHub key can read but not save. Make a key with Contents set to Read and write.';
+      if(lastErr.status===403)return 'Sync stopped: this GitHub key is not allowed to use your data. Edit the key on GitHub and set Contents to Read and write.';
       if(lastErr.status===404)return 'Sync stopped: your GitHub key cannot see Rico2. Make a key with Rico2 selected.';
       return 'Saved on this device. Will sync when back online.';
     },

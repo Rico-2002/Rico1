@@ -142,6 +142,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 .setrow.done .tick{background:var(--good);color:#fff}
 .setrow.done .stepper{opacity:.72}
 .sets{display:flex;flex-direction:column;gap:7px}
+.bwcell{height:44px;border-radius:10px;background:var(--surface-2);display:grid;place-items:center;font-size:.8rem;font-weight:600;color:var(--ink-3)}
 .effort{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
 .effort .chip{border-radius:10px;padding:0 4px}
 .linkbtn{font-size:.86rem;font-weight:600;color:var(--accent);min-height:32px}
@@ -446,6 +447,41 @@ const EX={
  cable_crunch:{n:'Cable crunch',m:'core',t:'mc',k:'i',inc:2.5,sub:'dead_bug',cue:'Curl your ribs to your hips.'},
  hanging_knee:{n:'Hanging knee raise',m:'core',t:'bw',k:'i',inc:2.5,cue:'Curl your hips up, no swinging.'},
  dead_bug:{n:'Dead bug',m:'core',t:'bw',k:'i',inc:2.5,cue:'Lower back stays pressed to the floor.'},
+ incline_push_up:{n:'Incline push-up',m:'chest',t:'bw',k:'c',inc:1,cue:'Hands on a table or bed edge, body in one straight line.'},
+ push_up:{n:'Push-up',m:'chest',t:'bw',k:'c',inc:1,cue:'Hands under your shoulders, chest to the floor, body straight like a plank.'},
+ decline_push_up:{n:'Decline push-up',m:'chest',t:'bw',k:'c',inc:1,cue:'Feet on a chair or bed, hands on the floor.'},
+ archer_push_up:{n:'Archer push-up',m:'chest',t:'bw',k:'c',inc:1,cue:'Wide hands, lower towards one hand while the other arm stays straight. Count each side.'},
+ diamond_push_up:{n:'Diamond push-up',m:'triceps',t:'bw',k:'c',inc:1,cue:'Hands close together under your chest. Knees down if you need to.'},
+ pike_push_up:{n:'Pike push-up',m:'shoulders',t:'bw',k:'c',inc:1,cue:'Hips high like an upside-down V, lower your head between your hands.'},
+ elevated_pike:{n:'Feet-up pike push-up',m:'shoulders',t:'bw',k:'c',inc:1,cue:'Feet on a chair, hips high, lower your head slowly towards the floor.'},
+ chair_dip:{n:'Chair dip',m:'triceps',t:'bw',k:'c',inc:1,cue:'Chair against a wall so it cannot slide. Knees bent, lower until your elbows reach 90°.'},
+ chair_dip_straight:{n:'Chair dip, legs straight',m:'triceps',t:'bw',k:'c',inc:1,cue:'Chair against a wall, legs straight out, lower until your elbows reach 90°.'},
+ table_row_bent:{n:'Table row, knees bent',m:'back',t:'bw',k:'c',inc:1,cue:'Only under a solid table that cannot tip, so test it first. Lie under it, grip the edge, pull your chest up.'},
+ table_row:{n:'Table row, legs straight',m:'back',t:'bw',k:'c',inc:1,cue:'Solid table only. Body straight from heels to head, pull your chest to the edge.'},
+ prone_ytw:{n:'Y-T-W raises',m:'back',t:'bw',k:'i',inc:1,cue:'Lie face down and lift your arms into a Y, then a T, then a W. One round is one rep.'},
+ reverse_snow_angel:{n:'Reverse snow angel',m:'back',t:'bw',k:'i',inc:1,cue:'Face down, arms lifted, sweep them from your hips to over your head and back.'},
+ superman:{n:'Superman hold',m:'back',t:'bw',k:'i',u:'s',inc:5,cue:'Face down, lift your arms, chest and legs a little off the floor and hold.'},
+ squat_bw:{n:'Bodyweight squat',m:'quads',t:'bw',k:'c',inc:1,cue:'Feet shoulder-width, sit back and down, chest up.'},
+ split_squat_bw:{n:'Split squat',m:'quads',t:'bw',k:'c',inc:1,cue:'Long step, lower the back knee towards the floor. Count each leg.'},
+ bulgarian_bw:{n:'Bulgarian split squat',m:'quads',t:'bw',k:'c',inc:1,cue:'Back foot on a chair or bed. Count each leg.'},
+ reverse_lunge:{n:'Reverse lunge',m:'quads',t:'bw',k:'c',inc:1,cue:'Step back, lower the knee, push through the front heel. Count each leg.'},
+ glute_bridge:{n:'Glute bridge',m:'hamstrings',t:'bw',k:'i',inc:1,cue:'On your back, feet flat, squeeze your glutes to lift your hips and pause at the top.'},
+ single_leg_bridge:{n:'Single-leg glute bridge',m:'hamstrings',t:'bw',k:'i',inc:1,cue:'One foot down, the other leg up. Count each side.'},
+ sl_rdl_bw:{n:'Single-leg reach',m:'hamstrings',t:'bw',k:'i',inc:1,cue:'Stand on one leg, hinge forward with a flat back and reach towards the floor. Count each leg.'},
+ calf_raise_bw:{n:'Calf raise on a step',m:'calves',t:'bw',k:'i',inc:1,cue:'Heels off a stair, rise all the way up, lower slowly.'},
+ single_calf_bw:{n:'Single-leg calf raise',m:'calves',t:'bw',k:'i',inc:1,cue:'One foot on the step, hold the wall for balance. Count each leg.'},
+ wall_sit:{n:'Wall sit',m:'quads',t:'bw',k:'i',u:'s',inc:5,cue:'Back against the wall, thighs parallel to the floor.'},
+ plank:{n:'Plank',m:'core',t:'bw',k:'i',u:'s',inc:5,cue:'Forearms down, body in one straight line, squeeze your glutes.'},
+ side_plank:{n:'Side plank',m:'core',t:'bw',k:'i',u:'s',inc:5,cue:'On one forearm with your hips up. The time is per side.'},
+};
+/* Harder versions, easiest first. The app moves you up once you reach the top of the range */
+const CHAINS={incline_push_up:['incline_push_up','push_up','decline_push_up','archer_push_up'],pike_push_up:['pike_push_up','elevated_pike'],chair_dip:['chair_dip','chair_dip_straight'],table_row_bent:['table_row_bent','table_row'],squat_bw:['squat_bw','split_squat_bw','bulgarian_bw'],glute_bridge:['glute_bridge','single_leg_bridge'],calf_raise_bw:['calf_raise_bw','single_calf_bw']};
+const HOME={
+ push:['incline_push_up','pike_push_up','chair_dip','diamond_push_up','plank'],
+ pull:['table_row_bent','prone_ytw','reverse_snow_angel','superman','dead_bug'],
+ legs:['squat_bw','reverse_lunge','glute_bridge','sl_rdl_bw','calf_raise_bw','wall_sit'],
+ arms:['diamond_push_up','chair_dip','table_row_bent','pike_push_up','side_plank'],
+ full:['incline_push_up','squat_bw','table_row_bent','glute_bridge','reverse_lunge','plank'],
 };
 const MUSCLES=['chest','back','shoulders','biceps','triceps','quads','hamstrings','calves','core'];
 const TEMPLATES={
@@ -473,7 +509,7 @@ const RECOVERY=[
 ];
 
 /* ---------- State and saving ---------- */
-const DEFAULTS={goal:'muscle',level:'intermediate',days:4,equip:'gym',sessionMin:75,gymTravel:15,commute:30,wake:'07:30',sleepH:8,pref:'evening',studyH:2,setupDone:false};
+const DEFAULTS={goal:'muscle',level:'intermediate',days:4,equip:'gym',sessionMin:75,gymTravel:15,commute:30,wake:'07:30',sleepH:8,pref:'evening',studyH:2,homeMode:'busy',homeDays:[],homeMin:40,setupDone:false};
 const S={settings:{...DEFAULTS},timetable:{classes:[],exams:[]},program:{},schedule:{overrides:{}},notes:{items:[],wishes:[]},chat:{turns:[]},sessions:{},sleep:{},routine:{},garmin:{days:{}},feed:null};
 const DOCS={'app/settings':'settings','app/timetable':'timetable','app/program':'program','app/schedule':'schedule','app/notes':'notes','app/chat':'chat','app/garmin':'garmin','app/feed':'feed'};
 const LS='rep-rhythm.v1';
@@ -571,12 +607,20 @@ function busyOn(f,padMin){
   return out;
 }
 function gapsIn(from,to,busy){const g=[];let c=from;busy.forEach(([s,e])=>{if(s>c)g.push([c,Math.min(s,to)]);c=Math.max(c,e)});if(c<to)g.push([c,to]);return g.filter(x=>x[1]>x[0])}
-function gymSlot(f){
-  const st=S.settings,len=st.sessionMin;
-  const from=Math.max(f.wake+60,420),to=Math.min(f.bed-120,1320);
-  const busy=busyOn(f,st.gymTravel);
+function gymSlot(f){const st=S.settings;return findSlot(f,st.sessionMin,st.gymTravel,Math.max(f.wake+60,420),Math.min(f.bed-120,1320))}
+function homeSlot(f){const st=S.settings;return findSlot(f,st.homeMin,st.commute,Math.max(f.wake+30,420),Math.min(f.bed-90,1350))}
+function slotFor(f){
+  const st=S.settings;
+  if((st.homeDays||[]).includes(f.wd)){const h=homeSlot(f);return h&&{...h,place:'home'}}
+  const g=gymSlot(f);if(g)return{...g,place:'gym'};
+  if(st.homeMode==='busy'){const h=homeSlot(f);if(h)return{...h,score:h.score-2,place:'home'}}
+  return null;
+}
+function findSlot(f,len,padMin,from,to){
+  const st=S.settings;
+  const busy=busyOn(f,padMin);
   const lastEnd=f.cl.length?Math.max(...f.cl.map(c=>toM(c.end))):null;
-  const target={morning:510,midday:750,evening:1050,auto:lastEnd!=null?lastEnd+st.gymTravel:1050}[st.pref]??1050;
+  const target={morning:510,midday:750,evening:1050,auto:lastEnd!=null?lastEnd+padMin:1050}[st.pref]??1050;
   let best=null;
   gapsIn(from,to,busy).forEach(([a,b])=>{
     if(b-a<len)return;
@@ -619,6 +663,10 @@ function dayWhy(d){
   if(d.forcedRest)return 'You marked this as a rest day.';
   if(d.type){
     const n=d.cl.length?`Classes finish at ${toT(Math.max(...d.cl.map(c=>toM(c.end))))}`:'No classes today';
+    if(d.place==='home'){
+      if((S.settings.homeDays||[]).includes(d.wd))return `${n}. This is one of your home days, so it is a ${S.settings.homeMin}-minute workout with no equipment at ${toT(d.slot.start)}.`;
+      return `${n}, and the gym does not fit today. A ${S.settings.homeMin}-minute home workout with no equipment fits at ${toT(d.slot.start)}.`;
+    }
     return `${n}, so ${toT(d.slot.start)} is free. You still finish more than 2 hours before bed.`;
   }
   if(d.examToday)return 'Exam today. Your head gets the energy, not the gym.';
@@ -628,16 +676,16 @@ function dayWhy(d){
 function planWeek(mon){
   if(weekCache[mon])return weekCache[mon];
   const dates=[...Array(7)].map((_,i)=>addDays(mon,i));
-  const facts=dates.map(dayFacts),slots=facts.map(gymSlot);
+  const facts=dates.map(dayFacts),slots=facts.map(slotFor);
   const n=S.settings.days;
   const idx=chooseDays(facts,slots,n);
   const types=assignTypes(idx,facts,n);
-  const days=facts.map((f,i)=>({...f,slot:slots[i],type:types[i]||null}));
+  const days=facts.map((f,i)=>({...f,slot:slots[i],type:types[i]||null,place:slots[i]?slots[i].place:'gym'}));
   const ov=S.schedule.overrides||{};
   days.forEach(d=>{
     const o=ov[d.date];if(!o)return;
     if(o.rest){d.type=null;d.forcedRest=true}
-    else if(o.type){d.type=o.type;d.moved=true;const s=toM(o.time)??(d.slot&&d.slot.start)??1050;d.slot={start:s,end:s+S.settings.sessionMin,score:0}}
+    else if(o.type){d.type=o.type;d.moved=true;d.place=o.place||(d.slot&&d.slot.place)||'gym';const len=d.place==='home'?S.settings.homeMin:S.settings.sessionMin;const alt=d.place==='home'?homeSlot(d):gymSlot(d);const s=toM(o.time)??(alt&&alt.start)??(d.slot&&d.slot.start)??1050;d.slot={start:s,end:s+len,score:0,place:d.place}}
   });
   days.forEach(d=>{d.why=dayWhy(d);d.blocks=buildBlocks(d)});
   return weekCache[mon]={mon,days,deload:isDeload(mon)};
@@ -656,7 +704,7 @@ function buildBlocks(d){
     add('c-in','commute',first-st.commute,first,'Travel to uni');
     add('c-out','commute',last,last+st.commute,'Travel home');
   }
-  if(d.type&&d.slot)add('gym','gym',d.slot.start,d.slot.end,TYPES[d.type].l+' day',TYPES[d.type].s,{type:d.type});
+  if(d.type&&d.slot)add('gym','gym',d.slot.start,d.slot.end,d.place==='home'?TYPES[d.type].l+' at home':TYPES[d.type].l+' day',d.place==='home'?`No equipment · ${S.settings.homeMin} min`:TYPES[d.type].s,{type:d.type,place:d.place});
   const lunch=free(40,720,870);if(lunch!=null)add('lunch','meal',lunch,lunch+40,'Lunch');
   const dinnerFrom=d.type&&d.slot&&d.slot.end>=1020?d.slot.end+20:1125;
   const dinner=free(40,dinnerFrom,Math.min(d.bed-60,1320));if(dinner!=null)add('dinner','meal',dinner,dinner+40,'Dinner',d.type?'Include protein to help recovery':'');
@@ -729,13 +777,31 @@ function isDeload(mon){
 /* ---------- Workouts and progression ---------- */
 function exInfo(id){return EX[id]||(S.program.custom&&S.program.custom[id])||{n:id,m:'core',t:'mc',k:'i',inc:2.5,cue:''}}
 function schemeFor(info){
+  if(info.t==='bw'){
+    const comp=info.k==='c',range=info.u==='s'?[30,60]:comp?(S.settings.goal==='strength'?[6,10]:[8,15]):[10,20];
+    return{sets:S.settings.level==='advanced'&&comp?4:3,repMin:range[0],repMax:range[1],rest:comp?75:60};
+  }
   const g=GOALS[S.settings.goal]||GOALS.muscle,lv=S.settings.level;
   const comp=info.k==='c';
   const sets=lv==='beginner'?(comp?3:2):lv==='advanced'?(comp?4:3):(comp?4:3);
   const[repMin,repMax]=comp?g.c:g.i;
   return{sets,repMin,repMax,rest:comp?g.rc:g.ri};
 }
-function programFor(type){
+function chainOf(ex){return Object.values(CHAINS).find(c=>c.includes(ex))||null}
+function resolveChain(root,date){
+  const ch=CHAINS[root];if(!ch)return root;
+  let i=S.settings.level!=='beginner'&&ch.length>=3?1:0;
+  for(let k=ch.length-1;k>=0;k--)if(historyOf(ch[k],date).length){i=k;break}
+  const h=historyOf(ch[i],date);
+  if(h.length){
+    const sc=schemeFor(exInfo(ch[i])),b=bestOf(h[0].e);
+    if(b.minR>=sc.repMax&&h[0].e.effort!=='max'&&i<ch.length-1)i++;
+    else if(i>0&&h.length>=2&&b.minR<sc.repMin&&bestOf(h[1].e).minR<sc.repMin)i--;
+  }
+  return ch[i];
+}
+function programFor(type,place,date){
+  if(place==='home'){const seen=new Set();return HOME[type].map(r=>resolveChain(r,date||todayKey())).filter(x=>{if(seen.has(x))return false;seen.add(x);return true}).map(ex=>({ex,...schemeFor(exInfo(ex))}))}
   const custom=S.program[type];
   if(Array.isArray(custom))return custom.map(c=>{const i=exInfo(c.ex),s=schemeFor(i);return{ex:c.ex,sets:c.sets||s.sets,repMin:c.repMin||s.repMin,repMax:c.repMax||s.repMax,rest:s.rest}});
   const eq=S.settings.equip,seen=new Set();
@@ -753,7 +819,12 @@ function roundTo(x,inc){return Math.max(0,Math.round(x/inc)*inc)}
 function bestOf(e){const done=e.sets.filter(s=>s.done);const w=Math.max(...done.map(s=>+s.w||0));const top=done.filter(s=>(+s.w||0)===w);return{w,minR:Math.min(...top.map(s=>+s.r||0)),maxR:Math.max(...top.map(s=>+s.r||0))}}
 function suggest(it,date,mode,deload){
   const info=exInfo(it.ex),inc=info.inc,{repMin,repMax}=it;
-  const h=historyOf(it.ex,date);
+  const h=historyOf(it.ex,date),bw=info.t==='bw',unit=info.u==='s'?'s':'reps';
+  if(bw&&!h.length){
+    const ch=chainOf(it.ex),idx=ch?ch.indexOf(it.ex):-1,stepUp=idx>0&&historyOf(ch[idx-1],date).length>0;
+    const why=stepUp?`New, harder version: you reached the top of the easier one. Aim for ${repMin} clean ${unit==='s'?'seconds':'reps'}.`:info.u==='s'?`Hold for ${repMin} seconds with good form. If that is easy, hold longer, up to ${repMax}.`:`Do clean reps up to ${repMax}, and stop when 2 more would be a struggle. Reach ${repMax} on every set and you get a harder version.`;
+    return{first:true,w:0,r:repMin,kind:stepUp?'up':'first',title:`${repMin} ${unit}`,why};
+  }
   if(!h.length){
     return{first:true,w:info.t==='bw'?0:null,r:repMin,kind:'first',title:'Find your starting weight',why:`Choose a weight you could lift about 3 more times after ${repMin}. If the last rep is easy, go up next set.`};
   }
@@ -770,10 +841,17 @@ function suggest(it,date,mode,deload){
   }
   if(mode==='steady'&&kind==='up'){w=b.w;r=Math.min(b.minR,repMax);kind='hold';why='You earned a weight increase, but today is a steady day. Keep last time’s weight and save the jump for a better day.'}
   if(deload&&w){w=roundTo(w*.9,inc);r=Math.min(r,repMin+2);kind='down';why='Lighter week. About 10% less weight lets your joints and nerves catch up.'}
-  return{w,r,kind,title:`${info.t==='bw'&&!w?'Bodyweight':fmtKg(w)+' kg'} × ${r}`,why,last:`Last time: ${info.t==='bw'&&!b.w?'bodyweight':fmtKg(b.w)+' kg'} × ${b.maxR}${effort==='max'?', at your limit':effort==='easy'?', felt easy':''}`};
+  if(bw){
+    w=0;
+    if(kind==='up'){r=repMax;kind='hold';why=info.u==='s'?'You held the full time. Keep it, and make it harder by squeezing everything tighter.':'Top of the range on the hardest version. Go slower: 3 seconds down and a 1-second pause at the bottom.'}
+    else if(kind==='down')why=`It has been a while, or the last sessions were hard. Aim for ${repMin} clean ${unit==='s'?'seconds':'reps'}.`;
+    if(deload){r=Math.min(r,repMin);why='Lighter week: fewer reps so your body catches up.'}
+    return{w,r,kind,title:`${r} ${unit}`,why,last:`Last time: ${b.maxR} ${unit}${effort==='max'?', at your limit':effort==='easy'?', felt easy':''}`};
+  }
+  return{w,r,kind,title:`${fmtKg(w)} kg × ${r}`,why,last:`Last time: ${fmtKg(b.w)} kg × ${b.maxR}${effort==='max'?', at your limit':effort==='easy'?', felt easy':''}`};
 }
-function workoutItems(type,date,mode,deload){
-  const list=fitToTime(programFor(type),S.settings.sessionMin);
+function workoutItems(type,date,mode,deload,place){
+  const list=fitToTime(programFor(type,place,date),place==='home'?S.settings.homeMin:S.settings.sessionMin);
   return list.map(it=>{
     const sets=(mode==='steady'||deload)?Math.max(2,it.sets-1):it.sets;
     return{...it,sets,info:exInfo(it.ex),target:suggest(it,date,mode,deload)};
@@ -794,7 +872,7 @@ function platesSvg(list){
 }
 
 /* ---------- UI state ---------- */
-let tab='today',weekMon=null,selDay=null,chartEx=null,coachBusy=false,coachChanges=null,editingSleep=false,sleepDraft=null,timerState=null,wakeLock=null;
+let trainPlace=null,tab='today',weekMon=null,selDay=null,chartEx=null,coachBusy=false,coachChanges=null,editingSleep=false,sleepDraft=null,timerState=null,wakeLock=null;
 try{tab=localStorage.getItem(LS+'.tab')||'today'}catch(e){}
 const TABS=[['today','Today','<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'],['train','Train','<path d="M4 9v6M7 6v12M17 6v12M20 9v6M7 12h10"/>'],['week','Week','<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'],['progress','Progress','<path d="M3 20h18M6 16l4-5 4 3 5-7"/>'],['coach','Coach','<path d="M4 5h16v11H9l-5 4z"/>']];
 const GEAR='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>';
@@ -877,9 +955,10 @@ function workoutCard(d,r){
   if(mode==='recover'&&!(active&&active.date===d.date)){
     return `<section class="day-card t-recover"><div class="row between"><div class="meta">${toT(d.slot.start)} · 30 min</div><span class="pill">Instead of ${esc(TYPES[d.type].l)}</span></div><h2>Easy day</h2><ul>${RECOVERY.map(x=>`<li><span>${esc(x[0])}</span><span>${esc(x[1].length>18?'':x[1])}</span></li>`).join('')}</ul><div class="btnrow"><button class="btn go" data-a="start-recovery">Open easy day</button><button class="btn" data-a="start" data-v="${d.type}" data-m="steady">Lift light</button></div></section>`;
   }
-  const items=workoutItems(d.type,d.date,mode,pl.deload);
+  const items=workoutItems(d.type,d.date,mode,pl.deload,d.place);
   const label=active&&active.date===d.date?'Continue workout':'Start workout';
-  return `<section class="day-card t-${d.type}"><div class="row between"><div class="meta">${toT(d.slot.start)} · ${S.settings.sessionMin} min</div>${pl.deload?'<span class="pill">Lighter week</span>':mode==='steady'?'<span class="pill">Steady</span>':r?'<span class="pill">Full session</span>':'<span class="pill">Log sleep to adjust</span>'}</div><h2>${esc(TYPES[d.type].l)} day</h2><ul>${items.map(it=>`<li><span>${esc(it.info.n)}</span><span>${it.target.first?`${it.sets} × ${it.repMin}–${it.repMax}`:`${esc(it.target.title)}`}</span></li>`).join('')}</ul><p style="font-size:.88rem">${esc(d.why)}</p><div class="btnrow"><button class="btn go" data-a="start" data-v="${d.type}">${label}</button><button class="btn" data-a="not-today">Not today</button></div></section>`;
+  const home=d.place==='home',len=home?S.settings.homeMin:S.settings.sessionMin;
+  return `<section class="day-card t-${d.type}"><div class="row between"><div class="meta">${toT(d.slot.start)} · ${len} min${home?' · at home':''}</div>${home?'<span class="pill">No equipment</span>':pl.deload?'<span class="pill">Lighter week</span>':mode==='steady'?'<span class="pill">Steady</span>':r?'<span class="pill">Full session</span>':'<span class="pill">Log sleep to adjust</span>'}</div><h2>${esc(TYPES[d.type].l)} day</h2><ul>${items.map(it=>`<li><span>${esc(it.info.n)}</span><span>${it.target.first?`${it.sets} × ${it.repMin}–${it.repMax}${it.info.u==='s'?' s':''}`:`${it.sets} × ${esc(it.target.title)}`}</span></li>`).join('')}</ul><p style="font-size:.88rem">${esc(d.why)}</p><div class="btnrow"><button class="btn go" data-a="start" data-v="${d.type}" data-p="${d.place}">${label}</button><button class="btn" data-a="not-today">Not today</button></div></section>`;
 }
 const KIND_COL={wake:'var(--k-sleep)',sleep:'var(--k-sleep)',wind:'var(--k-sleep)',meal:'var(--k-meal)',commute:'var(--k-commute)',class:'var(--k-class)',exam:'var(--k-exam)',study:'var(--k-study)'};
 function blockColor(b){return b.kind==='gym'?`var(--${b.type})`:KIND_COL[b.kind]}
@@ -892,13 +971,14 @@ function timeline(d,checks){
 
 /* ---------- Train ---------- */
 function activeSession(){return Object.values(S.sessions).filter(s=>!s.finished&&diffDays(todayKey(),s.date)<=1).sort((a,b)=>b.date.localeCompare(a.date))[0]||null}
-function startSession(type,forceMode){
-  const date=todayKey(),id=`${date}_${type}`;
+function startSession(type,forceMode,place){
+  place=place==='home'?'home':'gym';
+  const date=todayKey(),id=`${date}_${type}${place==='home'?'-home':''}`;
   if(S.sessions[id]&&!S.sessions[id].finished){tab='train';render();return}
   const mode=forceMode||modeFor(date);const dl=planWeek(monOf(date)).deload;
-  const items=workoutItems(type,date,mode==='recover'?'steady':mode,dl);
+  const items=workoutItems(type,date,mode==='recover'?'steady':mode,dl,place);
   const r=readinessFor(date);
-  const s={id:S.sessions[id]?id+'_'+uid():id,date,type,mode,readiness:r?r.score:null,startedAt:Date.now(),finished:false,exercises:items.map(it=>({ex:it.ex,sets:[...Array(it.sets)].map(()=>({w:it.target.w,r:it.target.r,done:false})),effort:null,repMin:it.repMin,repMax:it.repMax,rest:it.rest,target:{title:it.target.title,why:it.target.why,kind:it.target.kind,first:!!it.target.first,last:it.target.last||''}}))};
+  const s={id:S.sessions[id]?id+'_'+uid():id,date,type,place,mode,readiness:r?r.score:null,startedAt:Date.now(),finished:false,exercises:items.map(it=>({ex:it.ex,sets:[...Array(it.sets)].map(()=>({w:it.target.w,r:it.target.r,done:false})),effort:null,repMin:it.repMin,repMax:it.repMax,rest:it.rest,target:{title:it.target.title,why:it.target.why,kind:it.target.kind,first:!!it.target.first,last:it.target.last||''}}))};
   S.sessions[s.id]=s;save.session(s);tab='train';keepAwake();render();window.scrollTo(0,0);
 }
 async function keepAwake(){try{wakeLock=await navigator.wakeLock.request('screen')}catch(e){}}
@@ -908,12 +988,13 @@ function viewTrain(){
   const date=todayKey(),d=planWeek(monOf(date)).days[wdOf(date)];
   const past=Object.values(S.sessions).filter(s=>s.finished).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
   const order=d.type?[d.type,...Object.keys(TYPES).filter(t=>t!==d.type)]:Object.keys(TYPES);
-  return pageTop('Train','Pick a session')+`<div class="wraprow" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${order.map(t=>`<button class="day-card t-${t}" style="text-align:left;gap:4px;padding:14px" data-a="start" data-v="${t}"><span style="font:700 1.6rem/1 var(--display);text-transform:uppercase">${esc(TYPES[t].l)}</span><span style="font-size:.82rem">${esc(TYPES[t].s)}</span>${t===d.type?'<span class="pill" style="width:fit-content;margin-top:5px">Planned today</span>':''}</button>`).join('')}</div>
-  <section class="card"><h2>Recent workouts</h2>${past.length?`<div class="list">${past.map(s=>{const n=(s.exercises||[]).reduce((a,e)=>a+e.sets.filter(x=>x.done).length,0);return `<div><div class="grow"><b style="font-weight:600">${esc(TYPES[s.type].l)}</b> <span class="small">${shortDate(s.date)}</span></div><span class="small">${n} sets</span></div>`}).join('')}</div>`:'<div class="empty">Your finished workouts appear here. Tap a coloured card to do your first one.</div>'}</section>`;
+  const place=trainPlace||(d.type?d.place:'gym');
+  return pageTop('Train','Pick a session')+`<div class="chips" role="group" aria-label="Where">${[['gym','At the gym'],['home','At home, no equipment']].map(([k,l])=>`<button class="chip ${place===k?'on':''}" data-a="train-place" data-v="${k}">${l}</button>`).join('')}</div>`+`<div class="wraprow" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${order.map(t=>`<button class="day-card t-${t}" style="text-align:left;gap:4px;padding:14px" data-a="start" data-v="${t}" data-p="${place}"><span style="font:700 1.6rem/1 var(--display);text-transform:uppercase">${esc(TYPES[t].l)}</span><span style="font-size:.82rem">${esc(TYPES[t].s)}</span>${t===d.type?'<span class="pill" style="width:fit-content;margin-top:5px">Planned today</span>':''}</button>`).join('')}</div>
+  <section class="card"><h2>Recent workouts</h2>${past.length?`<div class="list">${past.map(s=>{const n=(s.exercises||[]).reduce((a,e)=>a+e.sets.filter(x=>x.done).length,0);return `<div><div class="grow"><b style="font-weight:600">${esc(TYPES[s.type].l)}${s.place==='home'?' at home':''}</b> <span class="small">${shortDate(s.date)}</span></div><span class="small">${n} sets</span></div>`}).join('')}</div>`:'<div class="empty">Your finished workouts appear here. Tap a coloured card to do your first one.</div>'}</section>`;
 }
 function viewSession(s){
   const total=s.exercises.reduce((a,e)=>a+e.sets.length,0),done=s.exercises.reduce((a,e)=>a+e.sets.filter(x=>x.done).length,0);
-  return pageTop(TYPES[s.type].l+' day','Workout in progress')+
+  return pageTop(TYPES[s.type].l+(s.place==='home'?' at home':' day'),'Workout in progress')+
   `<section class="day-card t-${s.type}" style="gap:7px"><div class="row between"><b>${done} of ${total} sets</b>${s.mode==='steady'?'<span class="pill">Steady: no new weights</span>':s.mode==='go'?'<span class="pill">Try the new targets</span>':''}</div><div class="progressbar"><div style="width:${total?done/total*100:0}%"></div></div></section>`+
   s.exercises.map((e,x)=>exerciseCard(s,e,x)).join('')+
   `<button class="btn primary full" data-a="finish">Finish workout</button><button class="linkbtn" data-a="discard">${discardArmed?'Tap again to delete this workout':'Delete this workout'}</button>`;
@@ -922,22 +1003,22 @@ let discardArmed=false;
 function exerciseCard(s,e,x){
   const info=exInfo(e.ex),t=e.target||{};
   const allDone=e.sets.every(a=>a.done);
-  const stepL=info.inc;
+  const stepL=info.inc,bw=info.t==='bw',unit=info.u==='s'?'sec':'reps',rStep=info.u==='s'?5:1;
   const tagCls=t.kind==='up'?'tag-up':t.kind==='down'?'tag-down':t.kind==='hold'?'tag-hold':'';
   const tagTxt={up:'Move up',reps:'Add a rep',hold:'Hold',down:'Lighter',first:'First time'}[t.kind]||'';
   const w0=e.sets.find(a=>a.w!=null)?.w;
   let plates='';
-  if(info.t==='bb'&&w0>=20){const p=platesFor(w0);if(p)plates=`<div class="plates">${platesSvg(p)}<span class="small">Each side: ${p.length?p.map(fmtKg).join(' + '):'empty bar'} kg, on a 20 kg bar</span></div>`}
+  if(!bw&&info.t==='bb'&&w0>=20){const p=platesFor(w0);if(p)plates=`<div class="plates">${platesSvg(p)}<span class="small">Each side: ${p.length?p.map(fmtKg).join(' + '):'empty bar'} kg, on a 20 kg bar</span></div>`}
   let warm='';
   if(info.k==='c'&&w0>=30&&info.t==='bb')warm=`<p class="small">Warm up: ${fmtKg(20)} kg × 10, then ${fmtKg(roundTo(w0*.6,2.5))} kg × 5.</p>`;
   return `<section class="card ${allDone?'':''}"><div class="ex-head"><div class="grow"><span class="mtag">${esc(info.m)}</span><h3>${esc(info.n)}</h3></div><button class="linkbtn" data-a="swap" data-x="${x}">Swap</button></div>
   <div class="target">${tagTxt?`<span class="mtag ${tagCls}">${tagTxt}</span>`:''}<strong>${esc(t.title||'')}</strong><span class="why">${esc(t.why||'')}</span>${t.last?`<span class="small">${esc(t.last)}</span>`:''}</div>
   ${plates}${warm}
-  <p class="small">${esc(info.cue)} Goal: ${e.repMin}–${e.repMax} reps.</p>
-  <div class="sets"><div class="sethead"><span></span><span>kg</span><span>reps</span><span></span></div>
+  <p class="small">${esc(info.cue)} Goal: ${e.repMin}–${e.repMax} ${unit==='sec'?'seconds':'reps'}.</p>
+  <div class="sets"><div class="sethead"><span></span><span>${bw?'':'kg'}</span><span>${unit}</span><span></span></div>
   ${e.sets.map((a,i)=>`<div class="setrow ${a.done?'done':''}"><span class="setn">${i+1}</span>
-   <div class="stepper"><button data-a="step" data-f="w" data-d="${-stepL}" data-x="${x}" data-s="${i}" aria-label="Less weight">−</button><input id="w-${x}-${i}" inputmode="decimal" aria-label="Weight in kg" value="${a.w??''}" placeholder="kg" data-c="set" data-f="w" data-x="${x}" data-s="${i}"><button data-a="step" data-f="w" data-d="${stepL}" data-x="${x}" data-s="${i}" aria-label="More weight">+</button></div>
-   <div class="stepper"><button data-a="step" data-f="r" data-d="-1" data-x="${x}" data-s="${i}" aria-label="Fewer reps">−</button><input id="r-${x}-${i}" inputmode="numeric" aria-label="Reps" value="${a.r??''}" data-c="set" data-f="r" data-x="${x}" data-s="${i}"><button data-a="step" data-f="r" data-d="1" data-x="${x}" data-s="${i}" aria-label="More reps">+</button></div>
+   ${bw?'<div class="bwcell">Bodyweight</div>':`<div class="stepper"><button data-a="step" data-f="w" data-d="${-stepL}" data-x="${x}" data-s="${i}" aria-label="Less weight">−</button><input id="w-${x}-${i}" inputmode="decimal" aria-label="Weight in kg" value="${a.w??''}" placeholder="kg" data-c="set" data-f="w" data-x="${x}" data-s="${i}"><button data-a="step" data-f="w" data-d="${stepL}" data-x="${x}" data-s="${i}" aria-label="More weight">+</button></div>`}
+   <div class="stepper"><button data-a="step" data-f="r" data-d="${-rStep}" data-x="${x}" data-s="${i}" aria-label="Less">−</button><input id="r-${x}-${i}" inputmode="numeric" aria-label="Reps" value="${a.r??''}" data-c="set" data-f="r" data-x="${x}" data-s="${i}"><button data-a="step" data-f="r" data-d="${rStep}" data-x="${x}" data-s="${i}" aria-label="More">+</button></div>
    <button class="tick" data-a="tick" data-x="${x}" data-s="${i}" aria-label="Set ${i+1} done">✓</button></div>`).join('')}</div>
   ${allDone?`<div class="field"><span class="flabel">How did that feel?</span><div class="effort">${[['easy','Easy'],['good','Good'],['max','At my limit']].map(([v,l])=>`<button class="chip ${e.effort===v?'on':''}" data-a="effort" data-x="${x}" data-v="${v}">${l}</button>`).join('')}</div></div>`:''}
   </section>`;
@@ -983,7 +1064,7 @@ function viewWeek(){
   const hours=[8,10,12,14,16,18,20,22];
   const grid=`<div class="wg" aria-label="Week plan"><div></div>${pl.days.map(d=>`<button class="wg-h ${d.date===selDay?'sel':''} ${d.date===today?'today':''}" data-a="sel-day" data-v="${d.date}"><span>${WD[d.wd]}</span><span>${parseD(d.date).getDate()}</span></button>`).join('')}
   <div class="wg-axis">${hours.map(h=>`<span style="top:${wgY(h*60)}px">${h}</span>`).join('')}</div>
-  ${pl.days.map(d=>`<button class="wg-col" data-a="sel-day" data-v="${d.date}" aria-label="${WDL[d.wd]}">${d.blocks.filter(b=>['class','exam','gym','study'].includes(b.kind)).map(b=>{const y=wgY(b.start),h=Math.max(10,wgY(b.end)-y);const lab=b.kind==='gym'?TYPES[b.type].l:b.kind==='class'?b.title:b.kind==='exam'?'Exam':'';return `<span class="wg-b ${b.kind==='gym'?'t-'+b.type:''}" style="top:${y}px;height:${h}px;${b.kind==='gym'?'':`background:${blockColor(b)};${b.kind==='study'?'opacity:.55;':''}`}">${h>=20?esc(lab):''}</span>`}).join('')}</button>`).join('')}</div>`;
+  ${pl.days.map(d=>`<button class="wg-col" data-a="sel-day" data-v="${d.date}" aria-label="${WDL[d.wd]}">${d.blocks.filter(b=>['class','exam','gym','study'].includes(b.kind)).map(b=>{const y=wgY(b.start),h=Math.max(10,wgY(b.end)-y);const lab=b.kind==='gym'?(b.place==='home'?'Home':TYPES[b.type].l):b.kind==='class'?b.title:b.kind==='exam'?'Exam':'';return `<span class="wg-b ${b.kind==='gym'?'t-'+b.type:''}" style="top:${y}px;height:${h}px;${b.kind==='gym'?'':`background:${blockColor(b)};${b.kind==='study'?'opacity:.55;':''}`}">${h>=20?esc(lab):''}</span>`}).join('')}</button>`).join('')}</div>`;
   const g=pl.days.filter(d=>d.type).length;
   return pageTop('Week',`${shortDate(weekMon)} – ${shortDate(addDays(weekMon,6))}`)+exampleBanner()+
   `<section class="card"><div class="weeknav"><button class="btn thin" data-a="week-move" data-v="-7">‹ Prev</button><b>${g} gym day${g===1?'':'s'}</b><button class="btn thin" data-a="week-move" data-v="7">Next ›</button></div>${grid}
@@ -1099,7 +1180,7 @@ function coachContext(){
   const today=todayKey(),pl=planWeek(monOf(today));
   const recent=Object.values(S.sessions).filter(s=>(s.exercises||[]).length).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8).map(s=>({date:s.date,type:s.type,exercises:s.exercises.filter(e=>e.sets.some(a=>a.done)).map(e=>({ex:e.ex,sets:e.sets.filter(a=>a.done).map(a=>`${a.w}x${a.r}`).join(' '),effort:e.effort}))}));
   const r=readinessFor(today);
-  return{today,weekday:WDL[wdOf(today)],settings:S.settings,uniTimetableNext14Days:[...Array(14)].map((_,i)=>addDays(today,i)).flatMap(d=>feedOn(d).map(e=>({date:d,start:e[1],end:e[2],title:e[4],kind:e[6]}))),examPeriods:S.feed?S.feed.examPeriods:[],classes:S.timetable.classes.map(({id,day,start,end,title,room,kind})=>({id,day,start,end,title,room,kind})),exams:S.timetable.exams,thisWeek:pl.days.map(d=>({date:d.date,day:WD[d.wd],workout:d.type,gymAt:d.type&&d.slot?toT(d.slot.start):null})),sleepLast7:[...Array(7)].map((_,i)=>S.sleep[addDays(today,-i)]).filter(Boolean),readinessToday:r?{score:r.score,advice:r.band.word}:null,recentWorkouts:recent,program:Object.fromEntries(Object.keys(TYPES).map(t=>[t,programFor(t).map(i=>({ex:i.ex,sets:i.sets,reps:`${i.repMin}-${i.repMax}`}))])),exerciseLibrary:Object.fromEntries(Object.entries(EX).map(([k,v])=>[k,v.n])),rememberedNotes:S.notes.items};
+  return{today,weekday:WDL[wdOf(today)],settings:S.settings,uniTimetableNext14Days:[...Array(14)].map((_,i)=>addDays(today,i)).flatMap(d=>feedOn(d).map(e=>({date:d,start:e[1],end:e[2],title:e[4],kind:e[6]}))),examPeriods:S.feed?S.feed.examPeriods:[],classes:S.timetable.classes.map(({id,day,start,end,title,room,kind})=>({id,day,start,end,title,room,kind})),exams:S.timetable.exams,thisWeek:pl.days.map(d=>({date:d.date,day:WD[d.wd],workout:d.type,gymAt:d.type&&d.slot?toT(d.slot.start):null})),sleepLast7:[...Array(7)].map((_,i)=>S.sleep[addDays(today,-i)]).filter(Boolean),readinessToday:r?{score:r.score,advice:r.band.word}:null,recentWorkouts:recent,program:Object.fromEntries(Object.keys(TYPES).map(t=>[t,programFor(t).map(i=>({ex:i.ex,sets:i.sets,reps:`${i.repMin}-${i.repMax}`}))])),homeWorkouts:Object.fromEntries(Object.keys(TYPES).map(t=>[t,programFor(t,'home').map(i=>i.ex)])),thisWeekPlaces:pl.days.map(d=>d.type?d.place:null),exerciseLibrary:Object.fromEntries(Object.entries(EX).map(([k,v])=>[k,v.n])),rememberedNotes:S.notes.items};
 }
 const COACH_RULES=ctx=>`You are the coach inside Rep Rhythm, a phone app that plans one university student's gym training and daily routine around their timetable and Garmin sleep data.
 Speak simply and briefly: short sentences, no jargon, at most about 90 words. Explain the reason first, then the numbers. Reply in the language the person writes in.
@@ -1109,12 +1190,12 @@ Never suggest extreme dieting or more training than recovery allows. Never place
 
 Reply with ONLY one JSON object: {"reply":"text for the person","changes":[...]}.
 Use "changes" only when the person asks for something to change; otherwise use an empty array. The person confirms changes before they apply. Allowed items:
-{"type":"settings","values":{"goal":"muscle|strength|lean|fit","level":"beginner|intermediate|advanced","days":2-5,"equip":"gym|db","sessionMin":30-120,"gymTravel":0-60,"commute":0-120,"wake":"HH:MM","sleepH":6-10,"pref":"morning|midday|evening|auto","studyH":0-8}} (only keys that change)
+{"type":"settings","values":{"goal":"muscle|strength|lean|fit","level":"beginner|intermediate|advanced","days":2-5,"equip":"gym|db","sessionMin":30-120,"gymTravel":0-60,"commute":0-120,"wake":"HH:MM","sleepH":6-10,"pref":"morning|midday|evening|auto","studyH":0-8,"homeMode":"busy|off","homeDays":[0-6 weekdays always trained at home],"homeMin":15-90}} (only keys that change)
 {"type":"add_class","day":0-6,"start":"HH:MM","end":"HH:MM","title":"...","room":"...","kind":"lecture|lab|exercise|other"} (day 0 = Monday)
 {"type":"remove_class","id":"..."}
 {"type":"add_exam","date":"YYYY-MM-DD","title":"...","time":"HH:MM"}
 {"type":"remove_exam","id":"..."}
-{"type":"move_workout","from":"YYYY-MM-DD","to":"YYYY-MM-DD","time":"HH:MM"}
+{"type":"move_workout","from":"YYYY-MM-DD","to":"YYYY-MM-DD","time":"HH:MM","place":"gym|home"} (home = bodyweight workout with no equipment)
 {"type":"rest_day","date":"YYYY-MM-DD"}
 {"type":"swap_exercise","day":"push|pull|legs|arms|full","old":"exerciseId","new":"exerciseId"}
 {"type":"add_exercise","day":"...","ex":"exerciseId"}
@@ -1134,7 +1215,7 @@ function describeChange(c){
     case 'remove_class':{const x=S.timetable.classes.find(k=>k.id===c.id);return `Remove class: ${x?x.title:c.id}`}
     case 'add_exam':return `Add exam: ${c.title}, ${c.date}`;
     case 'remove_exam':{const x=S.timetable.exams.find(k=>k.id===c.id);return `Remove exam: ${x?x.title:c.id}`}
-    case 'move_workout':return `Move the ${shortDate(c.from)} workout to ${shortDate(c.to)}${c.time?' at '+c.time:''}`;
+    case 'move_workout':return `Move the ${shortDate(c.from)} workout to ${shortDate(c.to)}${c.time?' at '+c.time:''}${c.place==='home'?', at home':''}`;
     case 'rest_day':return `Make ${shortDate(c.date)} a rest day`;
     case 'swap_exercise':return `${TYPES[c.day]?.l||c.day} day: swap ${n(c.old)} for ${n(c.new)}`;
     case 'add_exercise':return `${TYPES[c.day]?.l||c.day} day: add ${n(c.ex)}`;
@@ -1155,12 +1236,15 @@ function applyChange(c){
     case 'settings':{const v=c.values||{},st=S.settings,a={goal:GOALS,level:{beginner:1,intermediate:1,advanced:1},equip:{gym:1,db:1},pref:{morning:1,midday:1,evening:1,auto:1}};
       Object.keys(a).forEach(k=>{if(v[k]!==undefined&&a[k][v[k]])st[k]=v[k]});
       [['days',2,5],['sessionMin',30,120],['gymTravel',0,60],['commute',0,120],['sleepH',6,10],['studyH',0,8]].forEach(([k,lo,hi])=>{if(v[k]!==undefined&&!isNaN(+v[k]))st[k]=clamp(+v[k],lo,hi)});
+      if(v.homeMode==='busy'||v.homeMode==='off')st.homeMode=v.homeMode;
+      if(v.homeMin!==undefined&&!isNaN(+v.homeMin))st.homeMin=clamp(+v.homeMin,15,90);
+      if(Array.isArray(v.homeDays))st.homeDays=[...new Set(v.homeDays.map(Number).filter(n=>n>=0&&n<=6))].sort();
       if(isT(v.wake))st.wake=v.wake;save.settings();return true}
     case 'add_class':if(!isT(c.start)||!isT(c.end)||!(c.day>=0&&c.day<=6))return false;t.classes=t.classes.filter(x=>!x.example);t.classes.push({id:uid(),day:+c.day,start:c.start,end:c.end,title:String(c.title||'Class').slice(0,80),room:String(c.room||'').slice(0,60),kind:c.kind||'lecture'});save.timetable();return true;
     case 'remove_class':t.classes=t.classes.filter(x=>x.id!==c.id);save.timetable();return true;
     case 'add_exam':if(!isD(c.date))return false;t.exams.push({id:uid(),date:c.date,title:String(c.title||'Exam').slice(0,80),time:isT(c.time)?c.time:''});save.timetable();return true;
     case 'remove_exam':t.exams=t.exams.filter(x=>x.id!==c.id);save.timetable();return true;
-    case 'move_workout':{if(!isD(c.from)||!isD(c.to))return false;const d=planWeek(monOf(c.from)).days[wdOf(c.from)];if(!d.type)return false;sc.overrides[c.from]={rest:true};sc.overrides[c.to]={type:d.type,time:isT(c.time)?c.time:null};save.schedule();invalidate();return true}
+    case 'move_workout':{if(!isD(c.from)||!isD(c.to))return false;const d=planWeek(monOf(c.from)).days[wdOf(c.from)];if(!d.type)return false;sc.overrides[c.from]={rest:true};sc.overrides[c.to]={type:d.type,time:isT(c.time)?c.time:null,place:c.place==='home'?'home':c.place==='gym'?'gym':undefined};save.schedule();invalidate();return true}
     case 'rest_day':if(!isD(c.date))return false;sc.overrides[c.date]={rest:true};save.schedule();return true;
     case 'swap_exercise':if(!TYPES[c.day]||!EX[c.new]&&!(S.program.custom||{})[c.new])return false;ensureProgram(c.day);S.program[c.day]=S.program[c.day].map(i=>i.ex===c.old?{...i,ex:c.new}:i);save.program();return true;
     case 'add_exercise':if(!TYPES[c.day]||!EX[c.ex]&&!(S.program.custom||{})[c.ex])return false;ensureProgram(c.day);if(!S.program[c.day].some(i=>i.ex===c.ex))S.program[c.day].push({ex:c.ex});save.program();return true;
@@ -1214,6 +1298,9 @@ function settingsSheet(){
   <div class="field"><span class="flabel">Equipment</span>${chips('s-equip',[['gym','Full gym'],['db','Dumbbells only']],d.equip)}</div>
   <div class="field"><span class="flabel">Best time for gym</span>${chips('s-pref',[['morning','Morning'],['midday','Midday'],['evening','Evening'],['auto','Right after class']],d.pref)}</div>
   <div class="field"><span class="flabel">Workout length</span>${chips('s-sessionMin',[[45,'45 min'],[60,'60'],[75,'75'],[90,'90']],d.sessionMin)}</div>
+  <div class="field"><span class="flabel">Home workouts, no equipment</span>${chips('s-homeMode',[['busy','When the gym does not fit'],['off','Never']],d.homeMode)}</div>
+  <div class="field"><span class="flabel">Always at home on</span><div class="chips" role="group">${WD.map((w,i)=>`<button class="chip ${(d.homeDays||[]).includes(i)?'on':''}" data-a="chip" data-g="s-homeDays" data-v="${i}">${w}</button>`).join('')}</div></div>
+  <div class="field"><span class="flabel">Home workout length</span>${chips('s-homeMin',[[30,'30 min'],[40,'40'],[45,'45'],[60,'60']],d.homeMin)}</div>
   <div class="two"><div class="field"><label for="s-wake">Usual wake-up</label><input id="s-wake" type="time" value="${esc(d.wake)}" data-d="wake"></div><div class="field"><label for="s-sleepH">Sleep goal (hours)</label><input id="s-sleepH" type="number" min="6" max="10" step="0.5" value="${d.sleepH}" data-d="sleepH"></div>
   <div class="field"><label for="s-commute">Trip to uni (min)</label><input id="s-commute" type="number" min="0" max="120" value="${d.commute}" data-d="commute"></div><div class="field"><label for="s-gymTravel">Trip to gym (min)</label><input id="s-gymTravel" type="number" min="0" max="60" value="${d.gymTravel}" data-d="gymTravel"></div>
   <div class="field"><label for="s-studyH">Study per day (hours)</label><input id="s-studyH" type="number" min="0" max="8" step="0.5" value="${d.studyH}" data-d="studyH"></div></div>
@@ -1246,13 +1333,14 @@ function notTodaySheet(){
   const date=todayKey(),pl=planWeek(monOf(date)),opts=[1,2,3].map(n=>addDays(date,n));
   sheetOpen(`<div class="row between"><h2>Not today</h2><button class="x" data-a="sheet-close" aria-label="Close">×</button></div><p class="plain">Move this session or take the day off. The rest of your plan stays the same.</p>
   <div class="list">${opts.map(o=>{const d=weekDay(o);const clash=d.type?` (replaces ${TYPES[d.type].l})`:'';return `<div><span>${WDL[wdOf(o)]} ${shortDate(o)}${esc(clash)}</span><button class="btn thin" data-a="move-today" data-v="${o}">Move here</button></div>`}).join('')}</div>
+  ${weekDay(date).place!=='home'?`<button class="btn primary full" data-a="home-today">Do it at home instead (no equipment)</button>`:''}
   <button class="btn full" data-a="rest-today">Make today a rest day</button>`);
 }
 function weekDay(date){return planWeek(monOf(date)).days[wdOf(date)]}
 function swapSheet(x){
   const s=activeSession(),e=s.exercises[x],info=exInfo(e.ex);
   const eq=S.settings.equip;
-  const opts=Object.entries(EX).filter(([k,v])=>v.m===info.m&&k!==e.ex&&(eq!=='db'||v.t==='db'||v.t==='bw'));
+  const opts=Object.entries(EX).filter(([k,v])=>v.m===info.m&&k!==e.ex&&(s.place==='home'?v.t==='bw':(eq!=='db'||v.t==='db'||v.t==='bw')));
   sheetOpen(`<div class="row between"><h2>Swap ${esc(info.n)}</h2><button class="x" data-a="sheet-close" aria-label="Close">×</button></div><p class="plain">Same muscle, different exercise. Useful if a machine is taken or something hurts.</p><div class="list">${opts.map(([k,v])=>`<div><span class="grow">${esc(v.n)}</span><button class="btn thin" data-a="do-swap" data-x="${x}" data-v="${k}">Use</button></div>`).join('')}</div>`);
 }
 function recoverySheet(){sheetOpen(`<div class="row between"><h2>Easy day</h2><button class="x" data-a="sheet-close" aria-label="Close">×</button></div><p class="plain">Blood flow helps you recover without adding stress. About 30 minutes.</p><div class="list">${RECOVERY.map(x=>`<div><div class="grow"><b style="font-weight:600">${esc(x[0])}</b><div class="small">${esc(x[1])}</div></div></div>`).join('')}</div><button class="btn primary full" data-a="sheet-close">Done</button>`)}
@@ -1301,6 +1389,7 @@ document.addEventListener('click',e=>{
     'goto-train'(){tab='train';render();window.scrollTo(0,0)},
     chip(){
       const g=b.dataset.g;
+      if(g==='s-homeDays'){const n=+v,a=new Set(draft.homeDays||[]);a.has(n)?a.delete(n):a.add(n);draft.homeDays=[...a].sort();const t3=document.querySelector('#sheet>div').scrollTop;settingsSheet();document.querySelector('#sheet>div').scrollTop=t3;return}
       if(g.startsWith('s-')){const k=g.slice(2);draft[k]=isNaN(+v)?v:+v;const top2=document.querySelector('#sheet>div').scrollTop;settingsSheet();document.querySelector('#sheet>div').scrollTop=top2;return}
       const st=window.scrollY;sleepDraft[g]=isNaN(+v)?v:+v;if(g==='hrv'&&b.classList.contains('on'))delete sleepDraft.hrv;render();window.scrollTo(0,st);
     },
@@ -1311,7 +1400,9 @@ document.addEventListener('click',e=>{
     'save-sleep'(){const date=todayKey();const l=sleepDraft;if(!['sleepScore','bodyBattery','mind','sore','hrv'].some(k=>l[k]!=null&&l[k]!=='')&&!(l.bed&&l.wake)){document.getElementById('sleep-msg').textContent='Set at least one number first, such as your sleep score.';return}l.date=date;l.source='manual';['sleepScore','bodyBattery'].forEach(k=>{if(l[k]!=null)l[k]=+l[k]});if(l.restingHR)l.restingHR=+l.restingHR;else delete l.restingHR;if(l.bed&&l.wake)l.sleepHours=Math.round(hoursOf({bed:l.bed,wake:l.wake})*10)/10;S.sleep[date]=clone(l);save.sleep(date);sleepDraft=null;editingSleep=false;render();window.scrollTo(0,0)},
     'edit-sleep'(){editingSleep=true;sleepDraft=clone(S.sleep[todayKey()]);render()},
     routine(){const d=b.dataset.d;const r=S.routine[d]=S.routine[d]||{date:d,done:{}};r.done[v]=!r.done[v];save.routine(d);const row=b.closest('.tl-row');row.classList.toggle('done',!!r.done[v])},
-    start(){startSession(v,b.dataset.m)},
+    start(){startSession(v,b.dataset.m,b.dataset.p)},
+    'train-place'(){trainPlace=v;render()},
+    'home-today'(){const date=todayKey(),d=weekDay(date);S.schedule.overrides[date]={type:d.type,place:'home',time:null};save.schedule();invalidate();sheetClose();render()},
     'start-recovery'(){recoverySheet()},
     'not-today'(){notTodaySheet()},
     'move-today'(){const date=todayKey(),d=weekDay(date);S.schedule.overrides[date]={rest:true};S.schedule.overrides[v]={type:d.type,time:null};save.schedule();invalidate();sheetClose();render()},
@@ -1324,7 +1415,7 @@ document.addEventListener('click',e=>{
     },
     effort(){s.exercises[x].effort=v;save.session(s);render()},
     swap(){swapSheet(x)},
-    'do-swap'(){const e=s.exercises[x],info=exInfo(v),sc=schemeFor(info);const t=suggest({ex:v,repMin:sc.repMin,repMax:sc.repMax},s.date,s.mode,false);e.ex=v;e.repMin=sc.repMin;e.repMax=sc.repMax;e.rest=sc.rest;e.effort=null;e.target={title:t.title,why:t.why,kind:t.kind,first:!!t.first,last:t.last||''};e.sets=e.sets.map(()=>({w:t.w,r:t.r,done:false}));save.session(s);sheetClose();render()},
+    'do-swap'(){const e=s.exercises[x],info=exInfo(v),sc=schemeFor(info);const t=suggest({ex:v,repMin:sc.repMin,repMax:sc.repMax},s.date,s.mode,false);e.ex=v;e.repMin=sc.repMin;e.repMax=sc.repMax;e.rest=sc.rest;e.effort=null;e.target={title:t.title,why:t.why,kind:t.kind,first:!!t.first,last:t.last||''};e.sets=e.sets.map(()=>({w:info.t==='bw'?0:t.w,r:t.r,done:false}));save.session(s);sheetClose();render()},
     finish(){finishSession(s)},
     discard(){if(!discardArmed){discardArmed=true;render();setTimeout(()=>{discardArmed=false;if(tab==='train')render()},4000);return}discardArmed=false;delete S.sessions[s.id];persist('sessions/'+s.id,null);timerState=null;render()},
     'timer-add'(){if(timerState)timerState.end+=30000},

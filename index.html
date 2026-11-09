@@ -548,11 +548,11 @@ const save={
   sleep(d){persist('sleep/'+d,S.sleep[d])},
   routine(d){persist('routine/'+d,S.routine[d])},
 };
+function sleepFor(d){const g=garminFor(d),l={...(S.sleep[d]||{}),...g};return Object.keys(g).length||S.sleep[d]?l:null}
 function garminFor(d){const g=S.garmin&&S.garmin.days&&S.garmin.days[d];if(!g)return{};const o={};['sleepScore','sleepHours','bed','wake','bodyBattery','restingHR','hrv'].forEach(k=>{if(g[k]!=null&&g[k]!=='')o[k]=g[k]});return o}
 function mergeGarmin(){
   S.garmin={days:{},...S.garmin};
   const t=todayKey();
-  Object.keys(S.garmin.days).forEach(d=>{if(d<t&&!S.sleep[d]&&Object.keys(garminFor(d)).length)S.sleep[d]={...garminFor(d),date:d,source:'garmin'}});
   if(sleepDraft&&sleepDraft.date===t&&sleepDraft.sleepScore==null&&!S.sleep[t])Object.assign(sleepDraft,garminFor(t));
 }
 async function pull(){
@@ -727,7 +727,7 @@ function median(a){const s=[...a].sort((x,y)=>x-y);if(!s.length)return null;cons
 function hoursOf(l){if(l.sleepHours!=null&&l.sleepHours!=='')return +l.sleepHours;if(l.bed&&l.wake){let b=toM(l.bed),w=toM(l.wake);if(w<=b)w+=1440;return (w-b)/60}return null}
 function bedClock(t){const m=toM(t);return m<720?m+1440:m}
 function readinessFor(date){
-  const l=S.sleep[date];if(!l)return null;
+  const l=sleepFor(date);if(!l)return null;
   const st=S.settings,comps=[],mods=[];
   const hours=hoursOf(l);
   let sl=l.sleepScore!=null&&l.sleepScore!==''?+l.sleepScore:(hours!=null?clamp(hours/st.sleepH*90,0,100):null);
@@ -739,7 +739,7 @@ function readinessFor(date){
   if(!comps.length)return null;
   const tw=comps.reduce((a,c)=>a+c.w,0);
   let score=comps.reduce((a,c)=>a+c.v*c.w,0)/tw;
-  const past=[...Array(14)].map((_,i)=>S.sleep[addDays(date,-i-1)]).filter(Boolean);
+  const past=[...Array(14)].map((_,i)=>sleepFor(addDays(date,-i-1))).filter(Boolean);
   const rhrs=past.map(p=>+p.restingHR).filter(Boolean);
   if(l.restingHR&&rhrs.length>=3&&+l.restingHR>=median(rhrs)+5){mods.push(['Resting heart rate is higher than usual',-5])}
   const last3=[l,...past.slice(0,2)].map(hoursOf).filter(h=>h!=null);
@@ -912,9 +912,13 @@ function viewToday(){
   const date=todayKey(),d=planWeek(monOf(date)).days[wdOf(date)],dt=parseD(date);
   const r=readinessFor(date);
   return pageTop('Today',`${WDL[d.wd]} ${dt.getDate()} ${MON[dt.getMonth()]}`)+installCard()+connectCard()+setupCard()+exampleBanner()+
-    ((!r||editingSleep)?checkinCard(date):readinessCard(r,date))+
+    (r?readinessCard(r,date):waitingCard())+
     workoutCard(d,r)+
     `<section class="card"><h2>Your day</h2><p class="plain">Built around your classes. Tick things off as you go.</p>${timeline(d,true)}</section>`;
+}
+function waitingCard(){
+  const any=S.garmin&&S.garmin.days&&Object.keys(S.garmin.days).length;
+  return `<section class="card"><div class="eyebrow">Readiness</div><p class="plain">${any?'Your watch’s sleep numbers for last night arrive between 06:20 and 11:20, once your watch has synced to Garmin Connect. Until then, today’s plan assumes you slept well.':'Readiness comes from your Garmin watch, and no numbers have arrived yet.'}</p></section>`;
 }
 function checkinCard(date){
   if(sleepDraft&&sleepDraft.date!==date)sleepDraft=null;
@@ -943,7 +947,7 @@ function readinessCard(r,date){
   <p class="plain">${esc(r.text)}</p>
   <div class="factors">${r.comps.map(c=>`<div class="factor"><span>${esc(c.label)}</span><div class="track"><div class="fill" style="width:${c.v}%;background:${c.v>=70?'var(--good)':c.v>=45?'var(--warn)':'var(--bad)'}"></div></div><b>${c.v}</b></div>`).join('')}</div>
   ${r.mods.length?`<p class="small">Also counted: ${r.mods.map(m=>`${esc(m[0])} (${m[1]})`).join(', ')}.</p>`:''}
-  <button class="linkbtn" style="align-self:flex-start" data-a="edit-sleep">Change my numbers</button></section>`;
+  <p class="small">From your Garmin watch.</p></section>`;
 }
 function workoutCard(d,r){
   const pl=planWeek(monOf(d.date));
@@ -958,7 +962,7 @@ function workoutCard(d,r){
   const items=workoutItems(d.type,d.date,mode,pl.deload,d.place);
   const label=active&&active.date===d.date?'Continue workout':'Start workout';
   const home=d.place==='home',len=home?S.settings.homeMin:S.settings.sessionMin;
-  return `<section class="day-card t-${d.type}"><div class="row between"><div class="meta">${toT(d.slot.start)} · ${len} min${home?' · at home':''}</div>${home?'<span class="pill">No equipment</span>':pl.deload?'<span class="pill">Lighter week</span>':mode==='steady'?'<span class="pill">Steady</span>':r?'<span class="pill">Full session</span>':'<span class="pill">Log sleep to adjust</span>'}</div><h2>${esc(TYPES[d.type].l)} day</h2><ul>${items.map(it=>`<li><span>${esc(it.info.n)}</span><span>${it.target.first?`${it.sets} × ${it.repMin}–${it.repMax}${it.info.u==='s'?' s':''}`:`${it.sets} × ${esc(it.target.title)}`}</span></li>`).join('')}</ul><p style="font-size:.88rem">${esc(d.why)}</p><div class="btnrow"><button class="btn go" data-a="start" data-v="${d.type}" data-p="${d.place}">${label}</button><button class="btn" data-a="not-today">Not today</button></div></section>`;
+  return `<section class="day-card t-${d.type}"><div class="row between"><div class="meta">${toT(d.slot.start)} · ${len} min${home?' · at home':''}</div>${home?'<span class="pill">No equipment</span>':pl.deload?'<span class="pill">Lighter week</span>':mode==='steady'?'<span class="pill">Steady</span>':r?'<span class="pill">Full session</span>':'<span class="pill">Waiting for your watch</span>'}</div><h2>${esc(TYPES[d.type].l)} day</h2><ul>${items.map(it=>`<li><span>${esc(it.info.n)}</span><span>${it.target.first?`${it.sets} × ${it.repMin}–${it.repMax}${it.info.u==='s'?' s':''}`:`${it.sets} × ${esc(it.target.title)}`}</span></li>`).join('')}</ul><p style="font-size:.88rem">${esc(d.why)}</p><div class="btnrow"><button class="btn go" data-a="start" data-v="${d.type}" data-p="${d.place}">${label}</button><button class="btn" data-a="not-today">Not today</button></div></section>`;
 }
 const KIND_COL={wake:'var(--k-sleep)',sleep:'var(--k-sleep)',wind:'var(--k-sleep)',meal:'var(--k-meal)',commute:'var(--k-commute)',class:'var(--k-class)',exam:'var(--k-exam)',study:'var(--k-study)'};
 function blockColor(b){return b.kind==='gym'?`var(--${b.type})`:KIND_COL[b.kind]}
@@ -1156,11 +1160,11 @@ function viewProgress(){
   const maxV=Math.max(20,...Object.values(c));
   const vol=hasVol?`<div class="factors">${MUSCLES.map(m=>`<div class="factor" style="grid-template-columns:82px 1fr 26px"><span style="text-transform:capitalize">${m}</span><div class="track" style="position:relative;height:12px;border-radius:5px"><div style="position:absolute;left:${10/maxV*100}%;width:${10/maxV*100}%;top:0;bottom:0;background:var(--band)"></div><div class="fill" style="position:relative;width:${c[m]/maxV*100}%;background:var(--accent)"></div></div><b>${c[m]}</b></div>`).join('')}</div><div class="legend"><span><i style="background:var(--accent)"></i>Sets done</span><span><i style="background:var(--band)"></i>Good range: 10–20 sets a week</span></div><p class="plain">${esc(volMsg(c))}</p>`:'<div class="empty">Log sets this week to see which muscles get enough work.</div>';
   /* Sleep */
-  const nights=[...Array(14)].map((_,i)=>addDays(today,i-13)).map(d=>({d,l:S.sleep[d]}));
+  const nights=[...Array(14)].map((_,i)=>addDays(today,i-13)).map(d=>({d,l:sleepFor(d)}));
   const sc=nights.map(n=>({d:n.d,v:n.l&&n.l.sleepScore!=null&&n.l.sleepScore!==''?+n.l.sleepScore:null}));
   const have=sc.filter(x=>x.v!=null);
   const avg=have.length?Math.round(have.reduce((a,b)=>a+b.v,0)/have.length):null;
-  const sleep=have.length?`${sleepBars(sc)}<div class="legend"><span><i style="background:var(--good)"></i>Good, 80+</span><span><i style="background:var(--warn)"></i>Fair, 60–79</span><span><i style="background:var(--bad)"></i>Poor, under 60</span></div><p class="plain">Your average score is ${avg}. ${avg>=80?'Your sleep is supporting your training.':avg>=60?'Decent. One earlier bedtime a week would help.':'Sleep is your biggest limit right now. Fix this before adding more gym.'}</p>${table(['Night','Score'],have.map(x=>[shortDate(x.d),x.v]))}`:'<div class="empty">Log your Garmin numbers on the Today page to see your sleep here.</div>';
+  const sleep=have.length?`${sleepBars(sc)}<div class="legend"><span><i style="background:var(--good)"></i>Good, 80+</span><span><i style="background:var(--warn)"></i>Fair, 60–79</span><span><i style="background:var(--bad)"></i>Poor, under 60</span></div><p class="plain">Your average score is ${avg}. ${avg>=80?'Your sleep is supporting your training.':avg>=60?'Decent. One earlier bedtime a week would help.':'Sleep is your biggest limit right now. Fix this before adding more gym.'}</p>${table(['Night','Score'],have.map(x=>[shortDate(x.d),x.v]))}`:'<div class="empty">Your sleep scores appear here once your watch’s numbers arrive.</div>';
   const rh=nights.filter(n=>n.l&&n.l.bed&&n.l.wake).map(n=>({d:n.d,bed:n.l.bed,wake:n.l.wake}));
   let rhythm='<div class="empty">Add the times you fell asleep and woke up, and your sleep rhythm appears here.</div>';
   if(rh.length){const bs=rh.map(r=>bedClock(r.bed)),spread=Math.max(...bs)-Math.min(...bs);rhythm=`${rhythmChart(rh)}<p class="plain">Each bar is one night, from falling asleep to waking up. ${rh.length<3?'A few more nights and you will see the pattern.':`Your bedtime moved by ${Math.floor(spread/60)} h ${pad(spread%60)} min. ${spread<=60?'That is a steady rhythm.':'Bars that line up mean a steadier rhythm, so try to bring them closer together.'}`}</p>${table(['Night','Asleep','Awake'],rh.map(r=>[shortDate(r.d),r.bed,r.wake]))}`}
@@ -1180,7 +1184,7 @@ function coachContext(){
   const today=todayKey(),pl=planWeek(monOf(today));
   const recent=Object.values(S.sessions).filter(s=>(s.exercises||[]).length).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8).map(s=>({date:s.date,type:s.type,exercises:s.exercises.filter(e=>e.sets.some(a=>a.done)).map(e=>({ex:e.ex,sets:e.sets.filter(a=>a.done).map(a=>`${a.w}x${a.r}`).join(' '),effort:e.effort}))}));
   const r=readinessFor(today);
-  return{today,weekday:WDL[wdOf(today)],settings:S.settings,uniTimetableNext14Days:[...Array(14)].map((_,i)=>addDays(today,i)).flatMap(d=>feedOn(d).map(e=>({date:d,start:e[1],end:e[2],title:e[4],kind:e[6]}))),examPeriods:S.feed?S.feed.examPeriods:[],classes:S.timetable.classes.map(({id,day,start,end,title,room,kind})=>({id,day,start,end,title,room,kind})),exams:S.timetable.exams,thisWeek:pl.days.map(d=>({date:d.date,day:WD[d.wd],workout:d.type,gymAt:d.type&&d.slot?toT(d.slot.start):null})),sleepLast7:[...Array(7)].map((_,i)=>S.sleep[addDays(today,-i)]).filter(Boolean),readinessToday:r?{score:r.score,advice:r.band.word}:null,recentWorkouts:recent,program:Object.fromEntries(Object.keys(TYPES).map(t=>[t,programFor(t).map(i=>({ex:i.ex,sets:i.sets,reps:`${i.repMin}-${i.repMax}`}))])),homeWorkouts:Object.fromEntries(Object.keys(TYPES).map(t=>[t,programFor(t,'home').map(i=>i.ex)])),thisWeekPlaces:pl.days.map(d=>d.type?d.place:null),exerciseLibrary:Object.fromEntries(Object.entries(EX).map(([k,v])=>[k,v.n])),rememberedNotes:S.notes.items};
+  return{today,weekday:WDL[wdOf(today)],settings:S.settings,uniTimetableNext14Days:[...Array(14)].map((_,i)=>addDays(today,i)).flatMap(d=>feedOn(d).map(e=>({date:d,start:e[1],end:e[2],title:e[4],kind:e[6]}))),examPeriods:S.feed?S.feed.examPeriods:[],classes:S.timetable.classes.map(({id,day,start,end,title,room,kind})=>({id,day,start,end,title,room,kind})),exams:S.timetable.exams,thisWeek:pl.days.map(d=>({date:d.date,day:WD[d.wd],workout:d.type,gymAt:d.type&&d.slot?toT(d.slot.start):null})),sleepLast7:[...Array(7)].map((_,i)=>sleepFor(addDays(today,-i))).filter(Boolean),readinessToday:r?{score:r.score,advice:r.band.word}:null,recentWorkouts:recent,program:Object.fromEntries(Object.keys(TYPES).map(t=>[t,programFor(t).map(i=>({ex:i.ex,sets:i.sets,reps:`${i.repMin}-${i.repMax}`}))])),homeWorkouts:Object.fromEntries(Object.keys(TYPES).map(t=>[t,programFor(t,'home').map(i=>i.ex)])),thisWeekPlaces:pl.days.map(d=>d.type?d.place:null),exerciseLibrary:Object.fromEntries(Object.entries(EX).map(([k,v])=>[k,v.n])),rememberedNotes:S.notes.items};
 }
 const COACH_RULES=ctx=>`You are the coach inside Rep Rhythm, a phone app that plans one university student's gym training and daily routine around their timetable and Garmin sleep data.
 Speak simply and briefly: short sentences, no jargon, at most about 90 words. Explain the reason first, then the numbers. Reply in the language the person writes in.

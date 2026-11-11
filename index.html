@@ -181,8 +181,6 @@ code.topic{font:600 .82rem/1.3 ui-monospace,Menlo,Consolas,monospace;background:
 .wg{display:grid;grid-template-columns:28px repeat(7,minmax(0,1fr));column-gap:2px}
 .wg-h{height:40px;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:.73rem;font-weight:600;color:var(--ink-2);line-height:1.1}
 .wg-h.sel{background:var(--ink);color:var(--bg)}
-.wg-h{position:relative}.wg-dl{position:absolute;top:3px;right:3px;width:8px;height:8px;border-radius:50%;background:var(--warn);box-shadow:0 0 0 2px var(--surface)}
-.dl-row{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--warn) 16%,transparent);margin-bottom:10px}.dl-row i{width:10px;height:10px;border-radius:50%;background:var(--warn);flex:none;margin-top:6px}
 .wg-h.today:not(.sel){color:var(--accent)}
 .wg-col{position:relative;background:var(--surface-2);border-radius:6px;height:352px;overflow:hidden;width:100%;display:block}
 .wg-axis{position:relative;height:352px}
@@ -928,6 +926,17 @@ function reminderPlan(){
     }
     out.push({id:`rr${tag}g`,when:on&&n.gym&&g?g.when:null,title:'Training soon',tags:'muscle',click:'',msg:g?g.msg:''});
     out.push({id:`rr${tag}n`,when:on&&n.wind?at(d.bed-45):null,title:'Wind down',tags:'crescent_moon',click:'',msg:`Screens off soon. Bed at ${toT(d.bed)} gives you ${st.sleepH} h before tomorrow’s ${toT(wakeOn(addDays(date,1)))} wake-up.`});
+    if(!on||i>1)continue;
+    const leaving=d.blocks.find(b=>b.id==='c-in');
+    d.blocks.forEach(b=>{
+      const id=`rr${tag}d${b.id.replace(/[^a-z0-9]/gi,'').slice(-14)}`;
+      const where=b.sub?b.sub.split(' · ')[0]:'';
+      if(b.kind==='commute'&&b.id==='c-in'&&n.classes!==false){const nx=d.blocks.find(x=>(x.kind==='class'||x.kind==='exam')&&x.start>=b.end-1);out.push({id,when:at(b.start),title:'Time to leave',tags:'bus',click:'',msg:nx?`${nx.title} starts at ${toT(nx.start)}${nx.sub?' in '+nx.sub.split(' · ')[0]:''}.`:'Leave for uni now.'})}
+      else if(b.kind==='class'&&n.classes!==false){if(leaving&&b.start-leaving.end<=5)return;out.push({id,when:at(b.start-10),title:b.title,tags:'books',click:'',msg:`Starts at ${toT(b.start)}${where?' in '+where:''}, until ${toT(b.end)}.`})}
+      else if(b.kind==='exam'&&n.classes!==false)out.push({id,when:at(b.start-30),title:b.title,tags:'pencil2',click:'',msg:`Starts at ${toT(b.start)}. Good luck.`});
+      else if(b.kind==='meal'&&b.id!=='breakfast'&&n.meals!==false)out.push({id,when:at(b.start),title:b.title+' time',tags:'fork_and_knife',click:'',msg:b.sub||`${b.end-b.start} minutes.`});
+      else if(b.kind==='study'&&n.study!==false)out.push({id,when:at(b.start),title:'Study block',tags:'brain',click:'',msg:`${b.end-b.start} minutes, until ${toT(b.end)}.${b.sub?' '+b.sub+'.':''}`});
+    });
   }
   return out;
 }
@@ -939,8 +948,11 @@ async function syncReminders(force){
   let sent={};try{sent=JSON.parse(localStorage.getItem(LS+'.sent')||'{}')}catch(e){}
   if(sent.topic!==n.topic)sent={topic:n.topic};
   const now=Date.now(),topic=encodeURIComponent(n.topic),self=location.origin+location.pathname;
+  let busy=false;
   try{
-    for(const r of reminderPlan()){
+    const plan=reminderPlan(),ids=new Set(plan.map(r=>r.id)),today=todayKey().replace(/-/g,'');
+    for(const k of Object.keys(sent)){if(k!=='topic'&&k.slice(2,10)>=today&&!ids.has(k)&&sent[k]!=='none'){const res=await fetch(`${NTFY}/${topic}/${k}/delete`);if(!res.ok){busy=true;break}sent[k]='none'}}
+    for(const r of busy?[]:plan){
       const key=r.when?JSON.stringify([r.when,r.title,r.msg]):'none';
       if(!force&&sent[r.id]===key)continue;
       if(!r.when){if(sent[r.id]!=='none'){await fetch(`${NTFY}/${topic}/${r.id}/delete`)}sent[r.id]='none';continue}
@@ -949,12 +961,13 @@ async function syncReminders(force){
       const q=new URLSearchParams({title:r.title,tags:r.tags,at:String(Math.floor(r.when/1000))});
       if(r.click)q.set('click',self+r.click);
       const res=await fetch(`${NTFY}/${topic}/${r.id}?${q}`,{method:'POST',body:r.msg});
-      if(res.ok)sent[r.id]=key;else break;
+      if(res.ok)sent[r.id]=key;else{busy=true;break}
     }
-  }catch(e){}
+  }catch(e){busy=true}
   const keep=todayKey().replace(/-/g,'');Object.keys(sent).forEach(k=>{if(k!=='topic'&&k.slice(2,10)<keep)delete sent[k]});
   try{localStorage.setItem(LS+'.sent',JSON.stringify(sent))}catch(e){}
   notifyBusy=false;
+  if(busy)setTimeout(()=>syncReminders(false),60000);
 }
 async function testReminder(topic){
   try{const r=await fetch(`${NTFY}/${encodeURIComponent(topic)}?${new URLSearchParams({title:'Rep Rhythm',tags:'white_check_mark'})}`,{method:'POST',body:'Reminders are working. You will get them here.'});return r.ok?'Sent. It should appear on your phone within a few seconds.':'ntfy did not accept the message. Try again in a minute.'}
@@ -1134,17 +1147,8 @@ function viewToday(){
   const r=readinessFor(date);
   return pageTop('Today',`${WDL[d.wd]} ${dt.getDate()} ${MON[dt.getMonth()]}`)+installCard()+connectCard()+setupCard()+exampleBanner()+
     wakeCard()+(r?readinessCard(r,date):waitingCard())+
-    workoutCard(d,r)+deadlinesCard()+
+    workoutCard(d,r)+
     `<section class="card"><h2>Your day</h2><p class="plain">Built around your classes. Tick things off as you go.</p>${timeline(d,true)}</section>`;
-}
-function dlOn(date){const f=S.feed;return f&&Array.isArray(f.deadlines)?f.deadlines.filter(x=>Array.isArray(x)&&x[0]===date):[]}
-function deadlinesAhead(){const f=S.feed,t=todayKey();return f&&Array.isArray(f.deadlines)?f.deadlines.filter(x=>Array.isArray(x)&&x[0]>=t).sort((a,b)=>(a[0]+a[1]).localeCompare(b[0]+b[1])):[]}
-function deadlinesCard(){
-  const all=deadlinesAhead(),t=todayKey();if(!all.length)return '';
-  const soon=all.filter(x=>diffDays(x[0],t)<=30),list=(soon.length?soon:all.slice(0,1)).slice(0,6),more=all.length-list.length;
-  const when=x=>{const n=diffDays(x[0],t);return n===0?'Today':n===1?'Tomorrow':`In ${n} days`};
-  const col=x=>{const n=diffDays(x[0],t);return n<=2?'var(--bad-ink)':n<=6?'var(--warn-ink)':'var(--ink-3)'};
-  return `<section class="card"><h2>Moodle deadlines</h2><p class="plain">What you need to hand in soon, from your Moodle courses.</p><div class="list">${list.map(x=>`<div><div class="grow" style="min-width:0"><b style="font-weight:600">${esc(x[3])}</b><div class="small">${esc(x[2])}</div></div><div style="text-align:right;flex:none"><b style="font-weight:600;color:${col(x)}">${when(x)}</b><div class="small">${shortDate(x[0])}${x[1]?' · '+esc(x[1]):''}</div></div></div>`).join('')}</div>${more>0?`<p class="small">${more} more later this semester.</p>`:''}</section>`;
 }
 function waitingCard(){
   const any=S.garmin&&S.garmin.days&&Object.keys(S.garmin.days).length;
@@ -1304,15 +1308,15 @@ function viewWeek(){
   selDay=selDay&&selDay>=weekMon&&selDay<=addDays(weekMon,6)?selDay:(today>=weekMon&&today<=addDays(weekMon,6)?today:weekMon);
   const sel=pl.days[wdOf(selDay)];
   const hours=[8,10,12,14,16,18,20,22];
-  const grid=`<div class="wg" aria-label="Week plan"><div></div>${pl.days.map(d=>`<button class="wg-h ${d.date===selDay?'sel':''} ${d.date===today?'today':''}" data-a="sel-day" data-v="${d.date}"><span>${WD[d.wd]}</span><span>${parseD(d.date).getDate()}</span>${dlOn(d.date).length?`<i class="wg-dl" aria-label="Deadline"></i>`:''}</button>`).join('')}
+  const grid=`<div class="wg" aria-label="Week plan"><div></div>${pl.days.map(d=>`<button class="wg-h ${d.date===selDay?'sel':''} ${d.date===today?'today':''}" data-a="sel-day" data-v="${d.date}"><span>${WD[d.wd]}</span><span>${parseD(d.date).getDate()}</span></button>`).join('')}
   <div class="wg-axis">${hours.map(h=>`<span style="top:${wgY(h*60)}px">${h}</span>`).join('')}</div>
   ${pl.days.map(d=>`<button class="wg-col" data-a="sel-day" data-v="${d.date}" aria-label="${WDL[d.wd]}">${d.blocks.filter(b=>['class','exam','gym','study'].includes(b.kind)).map(b=>{const y=wgY(b.start),h=Math.max(10,wgY(b.end)-y);const lab=b.kind==='gym'?(b.place==='home'?'Home':TYPES[b.type].l):b.kind==='class'?b.title:b.kind==='exam'?'Exam':'';return `<span class="wg-b ${b.kind==='gym'?'t-'+b.type:''}" style="top:${y}px;height:${h}px;${b.kind==='gym'?'':`background:${blockColor(b)};${b.kind==='study'?'opacity:.55;':''}`}">${h>=20?esc(lab):''}</span>`}).join('')}</button>`).join('')}</div>`;
   const g=pl.days.filter(d=>d.type).length;
   return pageTop('Week',`${shortDate(weekMon)} – ${shortDate(addDays(weekMon,6))}`)+exampleBanner()+
   `<section class="card"><div class="weeknav"><button class="btn thin" data-a="week-move" data-v="-7">‹ Prev</button><b>${g} gym day${g===1?'':'s'}</b><button class="btn thin" data-a="week-move" data-v="7">Next ›</button></div>${grid}
-  <div class="legend"><span><i style="background:var(--k-class)"></i>Class</span><span><i style="background:var(--k-study);opacity:.55"></i>Study</span><span><i style="background:var(--k-exam)"></i>Exam</span>${pl.days.some(d=>dlOn(d.date).length)?'<span><i style="background:var(--warn);border-radius:50%"></i>Deadline</span>':''}${Object.keys(TYPES).filter(t=>pl.days.some(d=>d.type===t)).map(t=>`<span><i style="background:var(--${t})"></i>${TYPES[t].l}</span>`).join('')}</div>
+  <div class="legend"><span><i style="background:var(--k-class)"></i>Class</span><span><i style="background:var(--k-study);opacity:.55"></i>Study</span><span><i style="background:var(--k-exam)"></i>Exam</span>${Object.keys(TYPES).filter(t=>pl.days.some(d=>d.type===t)).map(t=>`<span><i style="background:var(--${t})"></i>${TYPES[t].l}</span>`).join('')}</div>
   <p class="plain">Grey blocks are your classes. Coloured blocks are the gym, placed in your free time and spread across the week so each muscle gets time to recover.${pl.deload?' <b>This is a lighter week:</b> about 10% less weight and one set less.':''}</p></section>
-  <section class="card"><div class="row between"><h2>${WDL[sel.wd]}</h2>${sel.type?`<span class="mtag">${esc(TYPES[sel.type].l)}</span>`:'<span class="mtag">Rest</span>'}</div><p class="plain">${esc(sel.why)}</p>${dlOn(sel.date).map(x=>`<div class="dl-row"><i></i><div><b style="font-weight:600">Due ${x[1]?esc(x[1]):'today'}: ${esc(x[3])}</b><div class="small">${esc(x[2])} · Moodle</div></div></div>`).join('')}${timeline(sel,false)}</section>
+  <section class="card"><div class="row between"><h2>${WDL[sel.wd]}</h2>${sel.type?`<span class="mtag">${esc(TYPES[sel.type].l)}</span>`:'<span class="mtag">Rest</span>'}</div><p class="plain">${esc(sel.why)}</p>${timeline(sel,false)}</section>
   ${timetableCard()}`;
 }
 function feedCard(){
@@ -1422,7 +1426,7 @@ function coachContext(){
   const today=todayKey(),pl=planWeek(monOf(today));
   const recent=Object.values(S.sessions).filter(s=>(s.exercises||[]).length).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8).map(s=>({date:s.date,type:s.type,exercises:s.exercises.filter(e=>e.sets.some(a=>a.done)).map(e=>({ex:e.ex,sets:e.sets.filter(a=>a.done).map(a=>`${a.w}x${a.r}`).join(' '),effort:e.effort}))}));
   const r=readinessFor(today);
-  return{today,weekday:WDL[wdOf(today)],settings:S.settings,uniTimetableNext14Days:[...Array(14)].map((_,i)=>addDays(today,i)).flatMap(d=>feedOn(d).map(e=>({date:d,start:e[1],end:e[2],title:e[4],kind:e[6]}))),examPeriods:S.feed?S.feed.examPeriods:[],moodleDeadlines:deadlinesAhead().slice(0,10).map(x=>({date:x[0],time:x[1],course:x[2],title:x[3]})),classes:S.timetable.classes.map(({id,day,start,end,title,room,kind})=>({id,day,start,end,title,room,kind})),exams:S.timetable.exams,thisWeek:pl.days.map(d=>({date:d.date,day:WD[d.wd],workout:d.type,gymAt:d.type&&d.slot?toT(d.slot.start):null})),sleepLast7:[...Array(7)].map((_,i)=>sleepFor(addDays(today,-i))).filter(Boolean),readinessToday:r?{bodyScore:r.score}:null,todayLevel:(()=>{const dz=doseFor(today);return{level:dz.level,why:dz.text,head:dz.mind.why}})(),recentWorkouts:recent,program:Object.fromEntries(Object.keys(TYPES).map(t=>[t,programFor(t).map(i=>({ex:i.ex,sets:i.sets,reps:`${i.repMin}-${i.repMax}`}))])),homeWorkouts:Object.fromEntries(Object.keys(TYPES).map(t=>[t,programFor(t,'home').map(i=>i.ex)])),thisWeekPlaces:pl.days.map(d=>d.type?d.place:null),exerciseLibrary:Object.fromEntries(Object.entries(EX).map(([k,v])=>[k,v.n])),rememberedNotes:S.notes.items};
+  return{today,weekday:WDL[wdOf(today)],settings:S.settings,uniTimetableNext14Days:[...Array(14)].map((_,i)=>addDays(today,i)).flatMap(d=>feedOn(d).map(e=>({date:d,start:e[1],end:e[2],title:e[4],kind:e[6]}))),examPeriods:S.feed?S.feed.examPeriods:[],classes:S.timetable.classes.map(({id,day,start,end,title,room,kind})=>({id,day,start,end,title,room,kind})),exams:S.timetable.exams,thisWeek:pl.days.map(d=>({date:d.date,day:WD[d.wd],workout:d.type,gymAt:d.type&&d.slot?toT(d.slot.start):null})),sleepLast7:[...Array(7)].map((_,i)=>sleepFor(addDays(today,-i))).filter(Boolean),readinessToday:r?{bodyScore:r.score}:null,todayLevel:(()=>{const dz=doseFor(today);return{level:dz.level,why:dz.text,head:dz.mind.why}})(),recentWorkouts:recent,program:Object.fromEntries(Object.keys(TYPES).map(t=>[t,programFor(t).map(i=>({ex:i.ex,sets:i.sets,reps:`${i.repMin}-${i.repMax}`}))])),homeWorkouts:Object.fromEntries(Object.keys(TYPES).map(t=>[t,programFor(t,'home').map(i=>i.ex)])),thisWeekPlaces:pl.days.map(d=>d.type?d.place:null),exerciseLibrary:Object.fromEntries(Object.entries(EX).map(([k,v])=>[k,v.n])),rememberedNotes:S.notes.items};
 }
 const COACH_RULES=ctx=>`You are the coach inside Rep Rhythm, a phone app that plans one university student's gym training and daily routine around their timetable and Garmin sleep data.
 Speak simply and briefly: short sentences, no jargon, at most about 90 words. Explain the reason first, then the numbers. Reply in the language the person writes in.
@@ -1568,12 +1572,12 @@ function connectSheet(msg,vals){
 }
 function remindersBlock(d){
   const n=d.notify||{};
-  if(!n.on||!n.topic)return `<div class="card"><h3>Reminders on your phone</h3><p class="small">Notifications for your wake-up routine, before training and to wind down at night. They come through the free ntfy app, even when Rep Rhythm is closed.</p><button class="btn thin" data-a="notify-on">Turn on reminders</button></div>`;
+  if(!n.on||!n.topic)return `<div class="card"><h3>Reminders on your phone</h3><p class="small">Notifications for your wake-up routine, leaving for uni, classes, meals, study blocks, training and winding down. They come through the free ntfy app, even when Rep Rhythm is closed.</p><button class="btn thin" data-a="notify-on">Turn on reminders</button></div>`;
   return `<div class="card"><h3>Reminders on your phone</h3>
   <p class="small">1. Install <b>ntfy</b> from Google Play: play.google.com/store/apps/details?id=io.heckel.ntfy<br>2. In ntfy, tap <b>+</b> and subscribe to this topic (keep it private, it works like a password):</p>
   <div class="row"><code class="topic grow" id="n-topic">${esc(n.topic)}</code><button class="btn thin" data-a="notify-copy">Copy</button></div>
   <p class="small">3. Tap <b>Send a test</b> below.</p>
-  <div class="chips" role="group">${[['wake','Wake-up'],['gym','Before training'],['wind','Wind down']].map(([k,l])=>`<button class="chip ${n[k]?'on':''}" data-a="chip" data-g="n-${k}" data-v="1">${l}</button>`).join('')}</div>
+  <div class="chips" role="group">${[['wake','Wake-up'],['gym','Before training'],['classes','Classes and leaving'],['meals','Lunch and dinner'],['study','Study blocks'],['wind','Wind down']].map(([k,l])=>`<button class="chip ${n[k]!==false&&(n[k]||['classes','meals','study'].includes(k))?'on':''}" data-a="chip" data-g="n-${k}" data-v="1">${l}</button>`).join('')}</div>
   <p class="small" id="n-status" role="status"></p>
   <div class="wraprow"><button class="btn thin" data-a="notify-test">Send a test</button><button class="btn thin" data-a="notify-off">Turn off</button></div></div>`;
 }
@@ -1652,7 +1656,7 @@ document.addEventListener('click',e=>{
     'goto-train'(){tab='train';render();window.scrollTo(0,0)},
     chip(){
       const g=b.dataset.g;
-      if(g.startsWith('n-')){const k=g.slice(2);draft.notify={...draft.notify,[k]:!draft.notify[k]};const t4=document.querySelector('#sheet>div').scrollTop;settingsSheet();document.querySelector('#sheet>div').scrollTop=t4;return}
+      if(g.startsWith('n-')){const k=g.slice(2),cur=draft.notify[k]!==false&&(draft.notify[k]||['classes','meals','study'].includes(k));draft.notify={...draft.notify,[k]:!cur};const t4=document.querySelector('#sheet>div').scrollTop;settingsSheet();document.querySelector('#sheet>div').scrollTop=t4;return}
       if(g==='wk-ver'){wakeT.ver=v;wakeSheet();return}
       if(g==='s-homeDays'){const n=+v,a=new Set(draft.homeDays||[]);a.has(n)?a.delete(n):a.add(n);draft.homeDays=[...a].sort();const t3=document.querySelector('#sheet>div').scrollTop;settingsSheet();document.querySelector('#sheet>div').scrollTop=t3;return}
       if(g.startsWith('s-')){const k=g.slice(2);draft[k]=isNaN(+v)?v:+v;const top2=document.querySelector('#sheet>div').scrollTop;settingsSheet();document.querySelector('#sheet>div').scrollTop=top2;return}

@@ -103,6 +103,19 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 .day-card .btn.go{background:#fff;color:#131821}
 .day-card.t-arms .btn.go{background:#131821;color:#fff}
 .day-card.t-rest .btn{background:var(--surface-2)}
+.dchg{background:rgba(255,255,255,.16);border-radius:12px;padding:10px 12px;font-size:.88rem;display:flex;flex-direction:column;gap:5px}
+.t-arms .dchg{background:rgba(19,24,33,.1)}
+.day-card .dchg ul{list-style:disc;padding-left:18px;gap:3px;font-size:.88rem}
+.day-card .dchg li{display:list-item}
+.wk-now{background:var(--surface-2);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:6px;text-align:center;align-items:center}
+.wk-now strong{font:700 1.9rem/1.05 var(--display);letter-spacing:.01em}
+.wk-time{font:700 3.2rem/1 var(--display);font-variant-numeric:tabular-nums}
+.wk-dots{display:flex;gap:6px;justify-content:center}
+.wk-dots i{width:34px;height:6px;border-radius:3px;background:var(--surface-2);display:block}
+.wk-dots i.done{background:var(--good)}
+.wk-dots i.now{background:var(--accent)}
+code.topic{font:600 .82rem/1.3 ui-monospace,Menlo,Consolas,monospace;background:var(--surface-2);border-radius:8px;padding:9px 10px;overflow-wrap:anywhere;user-select:all}
+.headline{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;font-size:.9rem;background:var(--surface-2);border-radius:10px;padding:8px 11px}
 .pill{display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;font-size:.78rem;font-weight:600;background:rgba(255,255,255,.22)}
 .t-arms .pill{background:rgba(19,24,33,.14)}
 .btnrow{display:grid;grid-template-columns:2fr 1fr;gap:8px}
@@ -295,9 +308,33 @@ th{color:var(--ink-3);font-weight:600}
     const buf=new Uint8Array(await blob.arrayBuffer());let s='';for(let i=0;i<buf.length;i+=8192)s+=String.fromCharCode.apply(null,buf.subarray(i,i+8192));
     return{inlineData:{mimeType:blob.type||'image/jpeg',data:btoa(s)}};
   }
+  /* Claude API: paid per use, called straight from this device */
+  const CLAUDE_MODELS=['claude-haiku-5-5','claude-sonnet-5-5'];
+  async function askClaude(key,turns,opts,asJson){
+    const messages=[];
+    turns.forEach(t=>{const role=t.role==='assistant'?'assistant':'user',l=messages[messages.length-1];if(l&&l.role===role)l.content[l.content.length-1].text+='\n\n'+t.content;else messages.push({role,content:[{type:'text',text:t.content}]})});
+    const last=messages[messages.length-1];
+    if(asJson)last.content[last.content.length-1].text+='\n\nReply with only the JSON object, no other text.';
+    if(opts&&opts.images){const list=opts.images instanceof Blob?[opts.images]:Array.from(opts.images);for(const b of list){const p=await shrink(b);last.content.unshift({type:'image',source:{type:'base64',media_type:p.inlineData.mimeType,data:p.inlineData.data}})}}
+    let resp;
+    try{
+      for(const m of CLAUDE_MODELS){
+        resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:m,max_tokens:1500,messages})});
+        if(resp.status!==404)break;
+      }
+    }catch(e){throw{code:'upstream_error'}}
+    if(resp.status===429||resp.status===529)throw{code:'rate_limited'};
+    if(resp.status===401||resp.status===403)throw{code:'not_granted'};
+    if(!resp.ok){let msg='';try{msg=((await resp.json()).error||{}).message||''}catch(e){}throw{code:/credit/i.test(msg)?'no_credit':'upstream_error'}}
+    const j=await resp.json();
+    const text=(j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('');
+    if(!text)throw{code:'empty_completion'};
+    return{text,truncated:j.stop_reason==='max_tokens'};
+  }
   async function ask(input,opts,asJson){
     const key=config().aiKey;if(!key)throw{code:'not_granted'};
     const turns=typeof input==='string'?[{role:'user',content:input}]:input;
+    if(key.startsWith('sk-ant-'))return askClaude(key,turns,opts,asJson);
     const contents=[];turns.forEach(t=>{const role=t.role==='assistant'?'model':'user',l=contents[contents.length-1];if(l&&l.role===role)l.parts[0].text+='\n\n'+t.content;else contents.push({role,parts:[{text:t.content}]})});
     if(opts&&opts.images){const list=opts.images instanceof Blob?[opts.images]:Array.from(opts.images);const last=contents[contents.length-1];for(const b of list)last.parts.push(await shrink(b))}
     const body={contents};if(asJson)body.generationConfig={responseMimeType:'application/json'};
@@ -509,7 +546,7 @@ const RECOVERY=[
 ];
 
 /* ---------- State and saving ---------- */
-const DEFAULTS={goal:'muscle',level:'intermediate',days:4,equip:'gym',sessionMin:75,gymTravel:15,commute:30,wake:'07:30',sleepH:8,pref:'evening',studyH:2,homeMode:'busy',homeDays:[],homeMin:40,setupDone:false};
+const DEFAULTS={goal:'muscle',level:'intermediate',days:4,equip:'gym',sessionMin:75,gymTravel:15,commute:30,wake:'07:30',sleepH:8,pref:'evening',studyH:2,homeMode:'busy',homeDays:[],homeMin:40,wakeRoutine:'on',notify:{on:false,topic:'',wake:true,gym:true,wind:true},setupDone:false};
 const S={settings:{...DEFAULTS},timetable:{classes:[],exams:[]},program:{},schedule:{overrides:{}},notes:{items:[],wishes:[]},chat:{turns:[]},sessions:{},sleep:{},routine:{},garmin:{days:{}},feed:null};
 const DOCS={'app/settings':'settings','app/timetable':'timetable','app/program':'program','app/schedule':'schedule','app/notes':'notes','app/chat':'chat','app/garmin':'garmin','app/feed':'feed'};
 const LS='rep-rhythm.v1';
@@ -549,7 +586,7 @@ const save={
   routine(d){persist('routine/'+d,S.routine[d])},
 };
 function sleepFor(d){const g=garminFor(d),l={...(S.sleep[d]||{}),...g};return Object.keys(g).length||S.sleep[d]?l:null}
-function garminFor(d){const g=S.garmin&&S.garmin.days&&S.garmin.days[d];if(!g)return{};const o={};['sleepScore','sleepHours','bed','wake','bodyBattery','restingHR','hrv'].forEach(k=>{if(g[k]!=null&&g[k]!=='')o[k]=g[k]});return o}
+function garminFor(d){const g=S.garmin&&S.garmin.days&&S.garmin.days[d];if(!g)return{};const o={};['sleepScore','sleepHours','bed','wake','bodyBattery','restingHR','hrv','hrvAvg'].forEach(k=>{if(g[k]!=null&&g[k]!=='')o[k]=g[k]});return o}
 function mergeGarmin(){
   S.garmin={days:{},...S.garmin};
   const t=todayKey();
@@ -687,6 +724,20 @@ function planWeek(mon){
     if(o.rest){d.type=null;d.forcedRest=true}
     else if(o.type){d.type=o.type;d.moved=true;d.place=o.place||(d.slot&&d.slot.place)||'gym';const len=d.place==='home'?S.settings.homeMin:S.settings.sessionMin;const alt=d.place==='home'?homeSlot(d):gymSlot(d);const s=toM(o.time)??(alt&&alt.start)??(d.slot&&d.slot.start)??1050;d.slot={start:s,end:s+len,score:0,place:d.place}}
   });
+  const today=todayKey();
+  days.forEach(d=>{
+    if(d.date!==today||!d.type||!d.slot)return;
+    const dz=doseFor(d.date);d.dose=dz.level;
+    if(!(dz.level==='light'||dz.level==='recover'||dz.shortNight))return;
+    const full=d.place==='home'?S.settings.homeMin:S.settings.sessionMin;
+    const len=dz.level==='light'?lightMinutes(d.place):dz.level==='recover'?30:full;
+    if(d.moved){d.slot={...d.slot,end:d.slot.start+len};return}
+    const padMin=d.place==='home'?S.settings.commute:S.settings.gymTravel;
+    if(d.slot.end>d.bed-180||d.slot.end-d.slot.start!==len){
+      const s2=findSlot(d,len,padMin,Math.max(d.wake+60,420),Math.min(d.bed-180,1320));
+      if(s2){d.earlier=s2.start<d.slot.start;d.slot={...s2,place:d.place}}else d.slot={...d.slot,end:d.slot.start+len};
+    }
+  });
   days.forEach(d=>{d.why=dayWhy(d);d.blocks=buildBlocks(d)});
   return weekCache[mon]={mon,days,deload:isDeload(mon)};
 }
@@ -695,6 +746,7 @@ function buildBlocks(d){
   const add=(id,kind,start,end,title,sub,extra)=>bl.push({id,kind,start,end,title,sub:sub||'',...extra});
   const free=(len,from,to)=>{const b=bl.filter(x=>x.kind!=='sleep'&&x.kind!=='wake').map(x=>[x.start,x.end]).sort((a,c)=>a[0]-c[0]);const gaps=gapsIn(from,to,mergeI(b));const g=gaps.find(x=>x[1]-x[0]>=len);return g?g[0]:null};
   add('wake','wake',d.wake,d.wake+10,'Wake up',d.wake===toM(st.wake)?'Same time as usual keeps your rhythm':'Earlier today because of your first class');
+  if(st.wakeRoutine!=='off')add('wakeup','routine',d.wake+10,d.wake+15,'5-min wake-up routine',wakeVersion(d.date)==='gentle'?'Gentle version today':'Get your blood moving');
   add('breakfast','meal',d.wake+15,d.wake+45,'Breakfast');
   d.cl.forEach(c=>add('c'+c.id,'class',toM(c.start),toM(c.end),c.title,[c.room,c.kind].filter(Boolean).join(' · ')));
   d.ex.forEach(e=>{const s=toM(e.time)??540;add('e'+e.id,'exam',s,s+120,'Exam: '+e.title)});
@@ -704,7 +756,8 @@ function buildBlocks(d){
     add('c-in','commute',first-st.commute,first,'Travel to uni');
     add('c-out','commute',last,last+st.commute,'Travel home');
   }
-  if(d.type&&d.slot)add('gym','gym',d.slot.start,d.slot.end,d.place==='home'?TYPES[d.type].l+' at home':TYPES[d.type].l+' day',d.place==='home'?`No equipment · ${S.settings.homeMin} min`:TYPES[d.type].s,{type:d.type,place:d.place});
+  if(d.type&&d.slot&&d.dose==='recover')add('gym','gym',d.slot.start,d.slot.end,'Easy day','Walk and mobility instead of '+TYPES[d.type].l,{type:d.type,place:d.place});
+  else if(d.type&&d.slot)add('gym','gym',d.slot.start,d.slot.end,d.place==='home'?TYPES[d.type].l+' at home':TYPES[d.type].l+' day',(d.dose==='light'?'Light session · ':d.dose==='steady'?'Steady · ':'')+(d.place==='home'?`No equipment · ${d.slot.end-d.slot.start} min`:TYPES[d.type].s),{type:d.type,place:d.place});
   const lunch=free(40,720,870);if(lunch!=null)add('lunch','meal',lunch,lunch+40,'Lunch');
   const dinnerFrom=d.type&&d.slot&&d.slot.end>=1020?d.slot.end+20:1125;
   const dinner=free(40,dinnerFrom,Math.min(d.bed-60,1320));if(dinner!=null)add('dinner','meal',dinner,dinner+40,'Dinner',d.type?'Include protein to help recovery':'');
@@ -730,41 +783,72 @@ function readinessFor(date){
   const l=sleepFor(date);if(!l)return null;
   const st=S.settings,comps=[],mods=[];
   const hours=hoursOf(l);
+  const past=[...Array(14)].map((_,i)=>sleepFor(addDays(date,-i-1))).filter(Boolean);
   let sl=l.sleepScore!=null&&l.sleepScore!==''?+l.sleepScore:(hours!=null?clamp(hours/st.sleepH*90,0,100):null);
   if(sl!=null)comps.push({k:'sleep',label:'Sleep',v:Math.round(sl),w:.35});
   if(l.bodyBattery!=null&&l.bodyBattery!=='')comps.push({k:'bb',label:'Body Battery',v:+l.bodyBattery,w:.25});
-  if(l.hrv)comps.push({k:'hrv',label:'HRV',v:{balanced:85,unbalanced:55,low:30}[l.hrv]??60,w:.1});
+  /* HRV compared with your own last 2 weeks, so a steady personal level does not count against you */
+  const hrvs=past.map(p=>+p.hrvAvg).filter(Boolean);
+  if(l.hrvAvg&&hrvs.length>=4){const ratio=+l.hrvAvg/median(hrvs);comps.push({k:'hrv',label:'HRV',v:ratio>=.97?85:ratio>=.9?65:ratio>=.8?45:30,w:.15,note:`${ratio>=1?'+':''}${Math.round((ratio-1)*100)}% vs your usual`})}
+  else if(l.hrv)comps.push({k:'hrv',label:'HRV',v:{balanced:85,unbalanced:55,low:30}[l.hrv]??60,w:.1});
   if(l.mind)comps.push({k:'mind',label:'Head',v:Math.round((l.mind-1)/4*100),w:.15});
   if(l.sore)comps.push({k:'sore',label:'Body',v:Math.round((5-l.sore)/4*100),w:.15});
   if(!comps.length)return null;
   const tw=comps.reduce((a,c)=>a+c.w,0);
   let score=comps.reduce((a,c)=>a+c.v*c.w,0)/tw;
-  const past=[...Array(14)].map((_,i)=>sleepFor(addDays(date,-i-1))).filter(Boolean);
   const rhrs=past.map(p=>+p.restingHR).filter(Boolean);
   if(l.restingHR&&rhrs.length>=3&&+l.restingHR>=median(rhrs)+5){mods.push(['Resting heart rate is higher than usual',-5])}
   const last3=[l,...past.slice(0,2)].map(hoursOf).filter(h=>h!=null);
   if(last3.length>=2&&last3.reduce((a,b)=>a+b,0)/last3.length<st.sleepH-1)mods.push(['Short on sleep over the last few nights',-5]);
   const beds=past.slice(0,7).filter(p=>p.bed).map(p=>bedClock(p.bed));
   if(l.bed&&beds.length>=3&&Math.abs(bedClock(l.bed)-median(beds))>90)mods.push(['Went to bed at an unusual time',-4]);
-  const f=dayFacts(date);
-  if(f.classMin>=360)mods.push(['Long day of classes',-5]);
-  if(f.examTomorrow)mods.push(['Exam tomorrow',-8]);
   score+=mods.reduce((a,m)=>a+m[1],0);
   score=Math.round(clamp(score,0,100));
-  let key=score>=70?'go':score>=45?'steady':'recover';
-  let capped=false;
-  if(key==='go'&&(f.examToday||f.examTomorrow)){key='steady';capped=true}
+  const key=score>=70?'go':score>=58?'steady':score>=45?'light':'recover';
   const low=[...comps].sort((a,b)=>a.v-b.v)[0];
-  return{score,key,capped,comps,mods,low,band:BANDS[key],text:bandText(key,low,capped)};
+  return{score,key,comps,mods,low,hours};
 }
-const BANDS={go:{word:'Go for it',color:'var(--good)',ink:'var(--good-ink)'},steady:{word:'Keep it steady',color:'var(--warn)',ink:'var(--warn-ink)'},recover:{word:'Recover today',color:'var(--bad)',ink:'var(--bad-ink)'}};
-function bandText(key,low,capped){
-  if(capped)return 'Your body is ready, but an exam is close. Same exercises, one set less, no new weights, so your head stays fresh.';
-  if(key==='go')return 'You recovered well. Do the full session and try the new targets.';
-  if(key==='steady')return `${low.label} is your lowest score today. Same exercises, one set less, and no new weights.`;
-  return `${low.label} is very low today. Heavy lifting would cost more than it gives, so today is easy movement only.`;
+/* ---------- How hard today: body recovery, capped by how busy your head is ---------- */
+const LEVELS=['recover','light','steady','go'];
+const lower=(a,b)=>LEVELS.indexOf(a)<LEVELS.indexOf(b)?a:b;
+const DOSE={
+  go:{word:'Full session',pill:'Full session',color:'var(--good)',ink:'var(--good-ink)'},
+  steady:{word:'Keep it steady',pill:'Steady',color:'var(--warn)',ink:'var(--warn-ink)'},
+  light:{word:'Go light',pill:'Light',color:'var(--warn)',ink:'var(--warn-ink)'},
+  recover:{word:'Recover today',pill:'Recover',color:'var(--bad)',ink:'var(--bad-ink)'},
+};
+function allExams(){return[...S.timetable.exams,...(S.feed&&Array.isArray(S.feed.events)?S.feed.events.filter(e=>e[6]==='exam'&&!e[7]).map(e=>({date:e[0],title:e[4]})):[])]}
+function mindLoad(date){
+  const f=dayFacts(date),why=[];let cap='go';
+  const add=(c,t)=>{why.push(t);cap=lower(c,cap)};
+  if(f.examToday)add('light','Exam today');
+  if(f.examTomorrow)add('light','Exam tomorrow');
+  else if(!f.examToday){
+    const next=allExams().filter(e=>e.date>date).sort((a,b)=>a.date.localeCompare(b.date))[0];
+    if(next&&diffDays(next.date,date)<=7)add('steady',`Exam on ${WD[wdOf(next.date)]} ${shortDate(next.date)}`);
+    else if(examSeason(date))add('steady','Exam period');
+  }
+  if(f.classMin>=360)add('steady',`${Math.round(f.classMin/60)} h of classes today`);
+  return{cap,why};
 }
-function modeFor(date){const r=readinessFor(date);return r?r.key:'go'}
+const fmtH=h=>`${Math.floor(h)} h ${pad(Math.round((h%1)*60))}`;
+function doseFor(date){
+  const r=readinessFor(date),m=mindLoad(date),st=S.settings;
+  let body=r?r.key:'go';
+  const shortNight=!!(r&&r.hours!=null&&r.hours<st.sleepH-1.5);
+  if(shortNight)body=lower('steady',body);
+  const level=lower(m.cap,body),fromMind=level===m.cap&&LEVELS.indexOf(m.cap)<LEVELS.indexOf(body);
+  let text;
+  const lowName=r?r.low.label:'';
+  if(level==='go')text='You recovered well. Full session, and try the new targets.';
+  else if(level==='recover')text=`${lowName} is very low today. Heavy lifting would cost more than it gives, so today is easy movement only.`;
+  else if(fromMind)text=level==='light'?`${m.why[0]}. A short, easy session clears your head without tiring it.`:`Your body is fine, but ${m.why[0].charAt(0).toLowerCase()+m.why[0].slice(1)} takes energy too. Same workout without weight increases, so your head stays fresh.`;
+  else if(shortNight&&level==='steady')text=`Short night (${fmtH(r.hours)}). Same workout without weight increases, and you finish early so tonight’s sleep is protected.`;
+  else text=level==='light'?`${lowName} is low today. A shorter, easier workout keeps the habit without draining you.`:`${lowName} is lower than usual. Same workout without weight increases, so you train without digging a hole.`;
+  return{level,r,mind:m,shortNight,fromMind,d:DOSE[level],text};
+}
+function lightMinutes(place){const base=place==='home'?S.settings.homeMin:S.settings.sessionMin;return Math.max(25,Math.round(base*.65/5)*5)}
+function modeFor(date){return doseFor(date).level}
 function isDeload(mon){
   const first=Object.values(S.sessions).map(s=>s.date).sort()[0];
   const weeks=first?Math.floor(diffDays(mon,monOf(first))/7):0;
@@ -772,6 +856,107 @@ function isDeload(mon){
   const scores=[...Array(7)].map((_,i)=>readinessFor(addDays(mon,-i-1))).filter(Boolean).map(r=>r.score);
   if(scores.length>=4&&scores.reduce((a,b)=>a+b,0)/scores.length<50)return 'tired';
   return null;
+}
+
+/* ---------- 5-minute wake-up routine ---------- */
+const WAKE={
+  energise:[['March or jumping jacks','Swing your arms and get your heart going.'],['Slow squats','Sit back, chest up, 3 seconds down.'],['Push-ups','Knees down if you need to. Smooth reps, not to failure.'],['World’s greatest stretch','Lunge, one hand down, turn the other arm to the ceiling. Switch sides halfway.'],['Plank','Forearms down, squeeze your glutes. Rest a moment if you need to.']],
+  gentle:[['Deep breathing','Stand tall. Breathe in for 4, out for 6.'],['Neck and shoulder rolls','Slow circles in both directions.'],['Cat-cow','On hands and knees, slowly round and then arch your back.'],['Hip circles and leg swings','Hold a wall. Switch legs halfway.'],['Reach up, fold down','Reach for the ceiling, then let your arms hang towards the floor.']],
+};
+function wakeVersion(date){const dz=doseFor(date);return dz.r&&(dz.level==='light'||dz.level==='recover'||dz.shortNight)?'gentle':'energise'}
+let wakeT=null,wakeTimer=null;
+function wakeSheet(){
+  if(!wakeT)wakeT={ver:wakeVersion(todayKey()),elapsed:0,startedAt:null,done:false};
+  const w=wakeT,list=WAKE[w.ver],known=!!readinessFor(todayKey());
+  const why=w.ver==='gentle'?'Gentle today: your watch shows you are short on recovery, so this wakes you up without tiring you.':known?'Energising today: you recovered well.':'Your watch’s numbers are not in yet. If you feel tired, switch to Gentle.';
+  sheetOpen(`<div class="row between"><h2>Wake-up routine</h2><button class="x" data-a="sheet-close" aria-label="Close">×</button></div>
+  ${w.startedAt||w.elapsed?'':chips('wk-ver',[['energise','Energise'],['gentle','Gentle']],w.ver)}
+  <p class="small">${esc(why)} 5 moves, 1 minute each.</p>
+  <div class="wk-now"><span class="mtag" id="wk-step"></span><strong id="wk-name"></strong><span class="plain" id="wk-cue"></span><b class="wk-time" id="wk-time"></b></div>
+  <div class="wk-dots" id="wk-dots">${list.map(()=>'<i></i>').join('')}</div>
+  <p class="small" id="wk-next"></p>
+  <div class="btnrow"><button class="btn primary" data-a="wk-go" id="wk-go"></button><button class="btn" data-a="wk-skip">Next move</button></div>`);
+  wakeTick();clearInterval(wakeTimer);wakeTimer=setInterval(wakeTick,250);
+}
+function wakeTick(){
+  const w=wakeT;if(!w||!document.getElementById('wk-name')){clearInterval(wakeTimer);return}
+  const list=WAKE[w.ver],ms=w.elapsed+(w.startedAt?Date.now()-w.startedAt:0),i=Math.floor(ms/60000);
+  if(i>=list.length){
+    clearInterval(wakeTimer);
+    if(!w.done){w.done=true;const d=todayKey();const r=S.routine[d]=S.routine[d]||{date:d,done:{}};r.done.wakeup=true;save.routine(d);render();try{navigator.vibrate&&navigator.vibrate([200,100,200,100,300])}catch(e){}}
+    document.querySelector('#sheet>div').innerHTML=`<div class="row between"><h2>Done</h2><button class="x" data-a="sheet-close" aria-label="Close">×</button></div><p class="plain">Five minutes in, and your body is awake. Breakfast next.</p><button class="btn primary full" data-a="sheet-close">Close</button>`;
+    wakeT=null;return;
+  }
+  if(w.lastI!==undefined&&w.lastI!==i){try{navigator.vibrate&&navigator.vibrate(250)}catch(e){}}
+  w.lastI=i;
+  const left=Math.ceil((60000-(ms-i*60000))/1000);
+  document.getElementById('wk-step').textContent=`Move ${i+1} of ${list.length}`;
+  document.getElementById('wk-name').textContent=list[i][0];
+  document.getElementById('wk-cue').textContent=list[i][1];
+  document.getElementById('wk-time').textContent=`${Math.floor(left/60)}:${pad(left%60)}`;
+  document.getElementById('wk-next').textContent=i+1<list.length?`Next: ${list[i+1][0]}`:'Last move';
+  document.getElementById('wk-go').textContent=w.startedAt?'Pause':ms?'Continue':'Start';
+  document.querySelectorAll('#wk-dots i').forEach((el,k)=>el.className=k<i?'done':k===i?'now':'');
+}
+function wakeCard(){
+  const st=S.settings,date=todayKey();if(st.wakeRoutine==='off')return '';
+  const done=S.routine[date]&&S.routine[date].done&&S.routine[date].done.wakeup;
+  const now=new Date(),nowM=now.getHours()*60+now.getMinutes(),d=planWeek(monOf(date)).days[wdOf(date)];
+  if(done||nowM<d.wake-60||nowM>d.wake+240)return '';
+  const v=wakeVersion(date);
+  return `<section class="card"><div class="row between"><h2>Wake-up routine</h2><span class="mtag">5 min</span></div><p class="plain">${v==='gentle'?'Gentle moves to wake up without tiring you.':'Five quick moves to get your blood moving.'} ${WAKE[v].map(x=>x[0]).join(' · ')}.</p><button class="btn primary full" data-a="wake-open">Start the routine</button></section>`;
+}
+
+/* ---------- Reminders through the ntfy app ---------- */
+const NTFY='https://ntfy.sh';
+function newTopic(){const a=new Uint8Array(16);crypto.getRandomValues(a);return 'rep-rhythm-'+[...a].map(b=>'abcdefghijkmnpqrstuvwxyz23456789'[b%32]).join('')}
+function reminderPlan(){
+  const st=S.settings,n=st.notify||{},on=!!(n.on&&n.topic),out=[],base=todayKey();
+  for(let i=0;i<3;i++){
+    const date=addDays(base,i),d=planWeek(monOf(date)).days[wdOf(date)],tag=date.replace(/-/g,'');
+    const at=m=>{const[y,mo,da]=date.split('-').map(Number);return new Date(y,mo-1,da,0,m).getTime()};
+    const first=d.cl[0]||d.ex[0];
+    out.push({id:`rr${tag}w`,when:on&&n.wake?at(d.wake):null,title:'Good morning',tags:'sunrise',click:st.wakeRoutine!=='off'?'#wake':'',
+      msg:(st.wakeRoutine!=='off'?'Your 5-minute wake-up routine is ready. Tap to start.':'Time to get up.')+(first?` First: ${first.title||'Exam'} at ${first.start||first.time||''}.`:'')});
+    let g=null;
+    if(d.type&&d.slot){
+      const home=d.place==='home',lead=home?10:st.gymTravel+15,lvl=i===0?doseFor(date).level:'go';
+      const what=lvl==='recover'?`Easy day at ${toT(d.slot.start)}: walk and mobility, 30 min.`:`${TYPES[d.type].l} ${home?'at home':'day'} at ${toT(d.slot.start)}${lvl==='light'?': a light session today':lvl==='steady'?': steady today, no weight increases':''}.`;
+      g={when:at(d.slot.start-lead),msg:what+(home?' Starts in 10 min.':' Leave in 15 min.')};
+    }
+    out.push({id:`rr${tag}g`,when:on&&n.gym&&g?g.when:null,title:'Training soon',tags:'muscle',click:'',msg:g?g.msg:''});
+    out.push({id:`rr${tag}n`,when:on&&n.wind?at(d.bed-45):null,title:'Wind down',tags:'crescent_moon',click:'',msg:`Screens off soon. Bed at ${toT(d.bed)} gives you ${st.sleepH} h before tomorrow’s ${toT(wakeOn(addDays(date,1)))} wake-up.`});
+  }
+  return out;
+}
+let notifyBusy=false,notifyTimer=null;
+function queueReminders(){if(!window.RR||!loaded)return;clearTimeout(notifyTimer);notifyTimer=setTimeout(()=>syncReminders(false),4000)}
+async function syncReminders(force){
+  const n=S.settings.notify||{};if(!window.RR||notifyBusy||!n.topic)return;
+  notifyBusy=true;
+  let sent={};try{sent=JSON.parse(localStorage.getItem(LS+'.sent')||'{}')}catch(e){}
+  if(sent.topic!==n.topic)sent={topic:n.topic};
+  const now=Date.now(),topic=encodeURIComponent(n.topic),self=location.origin+location.pathname;
+  try{
+    for(const r of reminderPlan()){
+      const key=r.when?JSON.stringify([r.when,r.title,r.msg]):'none';
+      if(!force&&sent[r.id]===key)continue;
+      if(!r.when){if(sent[r.id]!=='none'){await fetch(`${NTFY}/${topic}/${r.id}/delete`)}sent[r.id]='none';continue}
+      if(r.when-now<20000){sent[r.id]=key;continue}
+      if(r.when-now>3*864e5-120000)continue;
+      const q=new URLSearchParams({title:r.title,tags:r.tags,at:String(Math.floor(r.when/1000))});
+      if(r.click)q.set('click',self+r.click);
+      const res=await fetch(`${NTFY}/${topic}/${r.id}?${q}`,{method:'POST',body:r.msg});
+      if(res.ok)sent[r.id]=key;else break;
+    }
+  }catch(e){}
+  const keep=todayKey().replace(/-/g,'');Object.keys(sent).forEach(k=>{if(k!=='topic'&&k.slice(2,10)<keep)delete sent[k]});
+  try{localStorage.setItem(LS+'.sent',JSON.stringify(sent))}catch(e){}
+  notifyBusy=false;
+}
+async function testReminder(topic){
+  try{const r=await fetch(`${NTFY}/${encodeURIComponent(topic)}?${new URLSearchParams({title:'Rep Rhythm',tags:'white_check_mark'})}`,{method:'POST',body:'Reminders are working. You will get them here.'});return r.ok?'Sent. It should appear on your phone within a few seconds.':'ntfy did not accept the message. Try again in a minute.'}
+  catch(e){return 'No connection to ntfy. Check your internet.'}
 }
 
 /* ---------- Workouts and progression ---------- */
@@ -826,7 +1011,7 @@ function suggest(it,date,mode,deload){
     return{first:true,w:0,r:repMin,kind:stepUp?'up':'first',title:`${repMin} ${unit}`,why};
   }
   if(!h.length){
-    return{first:true,w:info.t==='bw'?0:null,r:repMin,kind:'first',title:'Find your starting weight',why:`Choose a weight you could lift about 3 more times after ${repMin}. If the last rep is easy, go up next set.`};
+    return{first:true,w:info.t==='bw'?0:null,r:repMin,kind:'first',title:'Find your starting weight',why:mode==='light'?`Pick a weight that feels easy: you could do about 4 more reps after ${repMin}.`:`Choose a weight you could lift about 3 more times after ${repMin}. If the last rep is easy, go up next set.`};
   }
   const last=h[0].e,b=bestOf(last),effort=last.effort||'good',days=diffDays(date,h[0].date);
   let w=b.w,r,kind,why;
@@ -839,7 +1024,8 @@ function suggest(it,date,mode,deload){
     if(prev&&prev.w===b.w&&prev.minR<repMin){w=roundTo(b.w*.9,inc);r=repMin+1;kind='down';why='You missed the target twice at this weight. Drop 10%, get clean reps, then build up again.'}
     else{r=repMin;kind='hold';why=`You fell a little short of ${repMin} reps last time. Same weight, try to reach ${repMin} on every set.`}
   }
-  if(mode==='steady'&&kind==='up'){w=b.w;r=Math.min(b.minR,repMax);kind='hold';why='You earned a weight increase, but today is a steady day. Keep last time’s weight and save the jump for a better day.'}
+  if((mode==='steady'||mode==='light')&&kind==='up'){w=b.w;r=Math.min(b.minR,repMax);kind='hold';why=`You earned a weight increase, but today is a ${mode} day. Keep last time’s weight and save the jump for a better day.`}
+  if(mode==='light'&&kind==='reps'){r=b.minR;kind='hold';why='Match last time. No need to chase an extra rep today.'}
   if(deload&&w){w=roundTo(w*.9,inc);r=Math.min(r,repMin+2);kind='down';why='Lighter week. About 10% less weight lets your joints and nerves catch up.'}
   if(bw){
     w=0;
@@ -851,11 +1037,43 @@ function suggest(it,date,mode,deload){
   return{w,r,kind,title:`${fmtKg(w)} kg × ${r}`,why,last:`Last time: ${fmtKg(b.w)} kg × ${b.maxR}${effort==='max'?', at your limit':effort==='easy'?', felt easy':''}`};
 }
 function workoutItems(type,date,mode,deload,place){
-  const list=fitToTime(programFor(type,place,date),place==='home'?S.settings.homeMin:S.settings.sessionMin);
+  const base=place==='home'?S.settings.homeMin:S.settings.sessionMin;
+  let list=programFor(type,place,date);
+  if(mode==='light'){
+    /* Easier versions: less balance, focus and joint load than a heavy barbell or the hardest bodyweight step */
+    const seen=new Set();
+    list=list.map(it=>{
+      const info=exInfo(it.ex);let to=null;
+      if(place!=='home'&&info.t==='bb'&&info.k==='c'&&info.sub&&EX[info.sub])to=info.sub;
+      if(place==='home'){const ch=chainOf(it.ex);if(ch&&ch.indexOf(it.ex)>0)to=ch[ch.indexOf(it.ex)-1]}
+      return to?{...it,...schemeFor(exInfo(to)),ex:to,from:it.ex}:it;
+    }).filter(it=>{if(seen.has(it.ex))return false;seen.add(it.ex);return true});
+    list=list.map(it=>({...it,sets:Math.max(2,it.sets-1)}));
+    list=fitToTime(list,lightMinutes(place)).slice(0,4);
+  }else list=fitToTime(list,base);
+  const restAdd=mode==='light'?30:mode==='steady'?15:0;
   return list.map(it=>{
-    const sets=(mode==='steady'||deload)?Math.max(2,it.sets-1):it.sets;
-    return{...it,sets,info:exInfo(it.ex),target:suggest(it,date,mode,deload)};
+    const sets=(mode!=='light'&&deload)?Math.max(2,it.sets-1):it.sets;
+    return{...it,sets,rest:it.rest+restAdd,info:exInfo(it.ex),target:suggest(it,date,mode,deload)};
   });
+}
+function changesFor(dz,items,full,d){
+  const L=dz.level,out=[];
+  if(L==='go'||L==='recover')return out;
+  if(L==='light'){
+    if(items.length<full.length)out.push(`${items.length} exercises instead of ${full.length}`);
+    out.push('One set less on each exercise');
+    items.filter(i=>i.from).forEach(i=>out.push(`${exInfo(i.ex).n} instead of ${exInfo(i.from).n}`));
+    out.push('Same weights as last time, no chasing extra reps');
+    out.push('Stop each set with about 3 reps left in the tank');
+    out.push('30 s more rest between sets');
+  }else{
+    out.push('No weight increases: repeat last time’s weights');
+    out.push('Stop each set with 2 to 3 reps left in the tank');
+    out.push('15 s more rest between sets');
+  }
+  if(d.earlier)out.push(`Earlier, at ${toT(d.slot.start)}, so you finish at least 3 hours before bed`);
+  return out;
 }
 function e1rm(w,r){return w*(1+r/30)}
 function platesFor(total){
@@ -886,6 +1104,7 @@ function render(){
   app.innerHTML=({today:viewToday,train:viewTrain,week:viewWeek,progress:viewProgress,coach:viewCoach}[tab]||viewToday)();
   document.getElementById('tabs').innerHTML=TABS.map(([k,l,p])=>`<button class="${k===tab?'on':''}" data-a="tab" data-v="${k}" aria-current="${k===tab?'page':'false'}"><svg viewBox="0 0 24 24">${p}</svg>${l}</button>`).join('');
   window.scrollTo(0,sc);
+  queueReminders();
 }
 
 /* ---------- Today ---------- */
@@ -912,13 +1131,13 @@ function viewToday(){
   const date=todayKey(),d=planWeek(monOf(date)).days[wdOf(date)],dt=parseD(date);
   const r=readinessFor(date);
   return pageTop('Today',`${WDL[d.wd]} ${dt.getDate()} ${MON[dt.getMonth()]}`)+installCard()+connectCard()+setupCard()+exampleBanner()+
-    (r?readinessCard(r,date):waitingCard())+
+    wakeCard()+(r?readinessCard(r,date):waitingCard())+
     workoutCard(d,r)+
     `<section class="card"><h2>Your day</h2><p class="plain">Built around your classes. Tick things off as you go.</p>${timeline(d,true)}</section>`;
 }
 function waitingCard(){
   const any=S.garmin&&S.garmin.days&&Object.keys(S.garmin.days).length;
-  return `<section class="card"><div class="eyebrow">Readiness</div><p class="plain">${any?'Your watch’s sleep numbers for last night arrive between 06:20 and 11:20, once your watch has synced to Garmin Connect. Until then, today’s plan assumes you slept well.':'Readiness comes from your Garmin watch, and no numbers have arrived yet.'}</p></section>`;
+  return `<section class="card"><div class="eyebrow">Body readiness</div>${headLine(doseFor(todayKey()))}<p class="plain">${any?'Your watch’s sleep numbers for last night arrive between 06:20 and 11:20, once your watch has synced to Garmin Connect. Until then, today’s plan assumes you slept well.':'Readiness comes from your Garmin watch, and no numbers have arrived yet.'}</p></section>`;
 }
 function checkinCard(date){
   if(sleepDraft&&sleepDraft.date!==date)sleepDraft=null;
@@ -935,7 +1154,7 @@ function checkinCard(date){
   <div class="field"><span class="flabel">How sore is your body?</span>${mk('sore',[[1,'Not at all'],[2,'A little'],[3,'Sore'],[4,'Very'],[5,'Painful']],l.sore)}</div>
   <p class="small" id="sleep-msg" role="status"></p><button class="btn primary full" data-a="save-sleep">See today’s plan</button></section>`;
 }
-function gauge(score,band){
+function gauge(score){
   const W=132,cx=66,cy=68,R=54,a=v=>Math.PI*(1-v/100);
   const pt=(v,r=R)=>[cx+r*Math.cos(a(v)),cy-r*Math.sin(a(v))];
   const arc=(v0,v1,col)=>{const[x0,y0]=pt(v0),[x1,y1]=pt(v1);return `<path d="M${x0.toFixed(1)} ${y0.toFixed(1)}A${R} ${R} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}" stroke="${col}" stroke-width="11" fill="none"/>`};
@@ -943,28 +1162,36 @@ function gauge(score,band){
   return `<svg viewBox="0 0 ${W} 80" role="img" aria-label="Readiness ${score} of 100">${arc(1,44,'var(--bad)')}${arc(46,69,'var(--warn)')}${arc(71,99,'var(--good)')}<circle cx="${mx.toFixed(1)}" cy="${my.toFixed(1)}" r="9" fill="var(--surface)" stroke="var(--ink)" stroke-width="3"/><text x="${cx}" y="66" text-anchor="middle" style="font:700 34px var(--display);fill:var(--ink)">${score}</text></svg>`;
 }
 function readinessCard(r,date){
-  return `<section class="card bump"><div class="gaugewrap">${gauge(r.score,r.band)}<div><div class="eyebrow">Readiness</div><div class="status" style="color:${r.band.ink}"><i style="background:${r.band.color}"></i>${r.band.word}</div></div></div>
-  <p class="plain">${esc(r.text)}</p>
-  <div class="factors">${r.comps.map(c=>`<div class="factor"><span>${esc(c.label)}</span><div class="track"><div class="fill" style="width:${c.v}%;background:${c.v>=70?'var(--good)':c.v>=45?'var(--warn)':'var(--bad)'}"></div></div><b>${c.v}</b></div>`).join('')}</div>
+  const dz=doseFor(date);
+  return `<section class="card bump"><div class="gaugewrap">${gauge(r.score)}<div><div class="eyebrow">Body readiness</div><div class="status" style="color:${dz.d.ink}"><i style="background:${dz.d.color}"></i>${dz.d.word}</div></div></div>
+  <p class="plain">${esc(dz.text)}</p>
+  <div class="factors">${r.comps.map(c=>`<div class="factor"><span>${esc(c.label)}</span><div class="track"><div class="fill" style="width:${c.v}%;background:${c.v>=70?'var(--good)':c.v>=45?'var(--warn)':'var(--bad)'}"></div></div><b>${c.v}</b></div>${c.note?`<p class="small" style="margin-top:-4px">${esc(c.note)}</p>`:''}`).join('')}</div>
   ${r.mods.length?`<p class="small">Also counted: ${r.mods.map(m=>`${esc(m[0])} (${m[1]})`).join(', ')}.</p>`:''}
-  <p class="small">From your Garmin watch.</p></section>`;
+  ${headLine(dz)}
+  <p class="small">Body numbers from your Garmin watch.</p></section>`;
 }
+function headLine(dz){return dz.mind.why.length?`<div class="headline"><span class="mtag">Head</span><span>${dz.mind.why.map(esc).join(' · ')}</span></div>`:''}
 function workoutCard(d,r){
   const pl=planWeek(monOf(d.date));
   const active=activeSession();
   if(!d.type){
     return `<section class="day-card t-rest"><div class="eyebrow">No gym today</div><h2>Rest day</h2><p class="plain">${esc(d.why)}</p><button class="btn thin" style="align-self:flex-start" data-a="goto-train">Train anyway</button></section>`;
   }
-  const mode=r?r.key:'go';
+  const dz=doseFor(d.date),mode=dz.level;
   if(mode==='recover'&&!(active&&active.date===d.date)){
-    return `<section class="day-card t-recover"><div class="row between"><div class="meta">${toT(d.slot.start)} · 30 min</div><span class="pill">Instead of ${esc(TYPES[d.type].l)}</span></div><h2>Easy day</h2><ul>${RECOVERY.map(x=>`<li><span>${esc(x[0])}</span><span>${esc(x[1].length>18?'':x[1])}</span></li>`).join('')}</ul><div class="btnrow"><button class="btn go" data-a="start-recovery">Open easy day</button><button class="btn" data-a="start" data-v="${d.type}" data-m="steady">Lift light</button></div></section>`;
+    return `<section class="day-card t-recover"><div class="row between"><div class="meta">${toT(d.slot.start)} · 30 min</div><span class="pill">Instead of ${esc(TYPES[d.type].l)}</span></div><h2>Easy day</h2><ul>${RECOVERY.map(x=>`<li><span>${esc(x[0])}</span><span>${esc(x[1].length>18?'':x[1])}</span></li>`).join('')}</ul><p style="font-size:.88rem">Gentle movement brings blood to tired muscles and helps you sleep better tonight.</p><div class="btnrow"><button class="btn go" data-a="start-recovery">Open easy day</button><button class="btn" data-a="start" data-v="${d.type}" data-m="light" data-p="${d.place}">Lift light</button></div></section>`;
   }
   const items=workoutItems(d.type,d.date,mode,pl.deload,d.place);
+  const full=mode==='go'?items:workoutItems(d.type,d.date,'go',pl.deload,d.place);
+  const changes=changesFor(dz,items,full,d);
   const label=active&&active.date===d.date?'Continue workout':'Start workout';
-  const home=d.place==='home',len=home?S.settings.homeMin:S.settings.sessionMin;
-  return `<section class="day-card t-${d.type}"><div class="row between"><div class="meta">${toT(d.slot.start)} · ${len} min${home?' · at home':''}</div>${home?'<span class="pill">No equipment</span>':pl.deload?'<span class="pill">Lighter week</span>':mode==='steady'?'<span class="pill">Steady</span>':r?'<span class="pill">Full session</span>':'<span class="pill">Waiting for your watch</span>'}</div><h2>${esc(TYPES[d.type].l)} day</h2><ul>${items.map(it=>`<li><span>${esc(it.info.n)}</span><span>${it.target.first?`${it.sets} × ${it.repMin}–${it.repMax}${it.info.u==='s'?' s':''}`:`${it.sets} × ${esc(it.target.title)}`}</span></li>`).join('')}</ul><p style="font-size:.88rem">${esc(d.why)}</p><div class="btnrow"><button class="btn go" data-a="start" data-v="${d.type}" data-p="${d.place}">${label}</button><button class="btn" data-a="not-today">Not today</button></div></section>`;
+  const home=d.place==='home',len=d.slot.end-d.slot.start;
+  const pill=!r&&mode==='go'?'Waiting for your watch':pl.deload&&mode==='go'?'Lighter week':dz.d.pill;
+  return `<section class="day-card t-${d.type}"><div class="row between"><div class="meta">${toT(d.slot.start)} · ${len} min${home?' · at home':''}</div><span class="pill">${esc(pill)}${home?' · no equipment':''}</span></div><h2>${esc(TYPES[d.type].l)} day</h2><ul>${items.map(it=>`<li><span>${esc(it.info.n)}</span><span>${it.target.first?`${it.sets} × ${it.repMin}–${it.repMax}${it.info.u==='s'?' s':''}`:`${it.sets} × ${esc(it.target.title)}`}</span></li>`).join('')}</ul>
+  ${changes.length?`<div class="dchg"><b>What changes today</b><ul>${changes.map(c=>`<li>${esc(c)}</li>`).join('')}</ul></div>`:''}
+  <p style="font-size:.88rem">${esc(d.why)}</p><div class="btnrow"><button class="btn go" data-a="start" data-v="${d.type}" data-p="${d.place}">${label}</button><button class="btn" data-a="not-today">Not today</button></div></section>`;
 }
-const KIND_COL={wake:'var(--k-sleep)',sleep:'var(--k-sleep)',wind:'var(--k-sleep)',meal:'var(--k-meal)',commute:'var(--k-commute)',class:'var(--k-class)',exam:'var(--k-exam)',study:'var(--k-study)'};
+const KIND_COL={routine:'var(--good)',wake:'var(--k-sleep)',sleep:'var(--k-sleep)',wind:'var(--k-sleep)',meal:'var(--k-meal)',commute:'var(--k-commute)',class:'var(--k-class)',exam:'var(--k-exam)',study:'var(--k-study)'};
 function blockColor(b){return b.kind==='gym'?`var(--${b.type})`:KIND_COL[b.kind]}
 function timeline(d,checks){
   const now=new Date(),nowM=now.getHours()*60+now.getMinutes(),isToday=d.date===dk(now);
@@ -979,8 +1206,8 @@ function startSession(type,forceMode,place){
   place=place==='home'?'home':'gym';
   const date=todayKey(),id=`${date}_${type}${place==='home'?'-home':''}`;
   if(S.sessions[id]&&!S.sessions[id].finished){tab='train';render();return}
-  const mode=forceMode||modeFor(date);const dl=planWeek(monOf(date)).deload;
-  const items=workoutItems(type,date,mode==='recover'?'steady':mode,dl,place);
+  let mode=forceMode||modeFor(date);if(mode==='recover')mode='light';const dl=planWeek(monOf(date)).deload;
+  const items=workoutItems(type,date,mode,dl,place);
   const r=readinessFor(date);
   const s={id:S.sessions[id]?id+'_'+uid():id,date,type,place,mode,readiness:r?r.score:null,startedAt:Date.now(),finished:false,exercises:items.map(it=>({ex:it.ex,sets:[...Array(it.sets)].map(()=>({w:it.target.w,r:it.target.r,done:false})),effort:null,repMin:it.repMin,repMax:it.repMax,rest:it.rest,target:{title:it.target.title,why:it.target.why,kind:it.target.kind,first:!!it.target.first,last:it.target.last||''}}))};
   S.sessions[s.id]=s;save.session(s);tab='train';keepAwake();render();window.scrollTo(0,0);
@@ -999,7 +1226,7 @@ function viewTrain(){
 function viewSession(s){
   const total=s.exercises.reduce((a,e)=>a+e.sets.length,0),done=s.exercises.reduce((a,e)=>a+e.sets.filter(x=>x.done).length,0);
   return pageTop(TYPES[s.type].l+(s.place==='home'?' at home':' day'),'Workout in progress')+
-  `<section class="day-card t-${s.type}" style="gap:7px"><div class="row between"><b>${done} of ${total} sets</b>${s.mode==='steady'?'<span class="pill">Steady: no new weights</span>':s.mode==='go'?'<span class="pill">Try the new targets</span>':''}</div><div class="progressbar"><div style="width:${total?done/total*100:0}%"></div></div></section>`+
+  `<section class="day-card t-${s.type}" style="gap:7px"><div class="row between"><b>${done} of ${total} sets</b>${s.mode==='light'?'<span class="pill">Light: easy weights, 3 reps left</span>':s.mode==='steady'?'<span class="pill">Steady: no new weights</span>':s.mode==='go'?'<span class="pill">Try the new targets</span>':''}</div><div class="progressbar"><div style="width:${total?done/total*100:0}%"></div></div></section>`+
   s.exercises.map((e,x)=>exerciseCard(s,e,x)).join('')+
   `<button class="btn primary full" data-a="finish">Finish workout</button><button class="linkbtn" data-a="discard">${discardArmed?'Tap again to delete this workout':'Delete this workout'}</button>`;
 }
@@ -1028,7 +1255,7 @@ function exerciseCard(s,e,x){
   </section>`;
 }
 function sheetOpen(html){const el=document.getElementById('sheet');el.innerHTML=`<div role="dialog" aria-modal="true">${html}</div>`;el.hidden=false}
-function sheetClose(){const el=document.getElementById('sheet');el.hidden=true;el.innerHTML=''}
+function sheetClose(){clearInterval(wakeTimer);if(wakeT&&wakeT.startedAt){wakeT.elapsed+=Date.now()-wakeT.startedAt;wakeT.startedAt=null}const el=document.getElementById('sheet');el.hidden=true;el.innerHTML=''}
 function startTimer(sec){timerState={end:Date.now()+sec*1000};tickTimer();}
 function tickTimer(){
   const el=document.getElementById('timer');
@@ -1184,13 +1411,14 @@ function coachContext(){
   const today=todayKey(),pl=planWeek(monOf(today));
   const recent=Object.values(S.sessions).filter(s=>(s.exercises||[]).length).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8).map(s=>({date:s.date,type:s.type,exercises:s.exercises.filter(e=>e.sets.some(a=>a.done)).map(e=>({ex:e.ex,sets:e.sets.filter(a=>a.done).map(a=>`${a.w}x${a.r}`).join(' '),effort:e.effort}))}));
   const r=readinessFor(today);
-  return{today,weekday:WDL[wdOf(today)],settings:S.settings,uniTimetableNext14Days:[...Array(14)].map((_,i)=>addDays(today,i)).flatMap(d=>feedOn(d).map(e=>({date:d,start:e[1],end:e[2],title:e[4],kind:e[6]}))),examPeriods:S.feed?S.feed.examPeriods:[],classes:S.timetable.classes.map(({id,day,start,end,title,room,kind})=>({id,day,start,end,title,room,kind})),exams:S.timetable.exams,thisWeek:pl.days.map(d=>({date:d.date,day:WD[d.wd],workout:d.type,gymAt:d.type&&d.slot?toT(d.slot.start):null})),sleepLast7:[...Array(7)].map((_,i)=>sleepFor(addDays(today,-i))).filter(Boolean),readinessToday:r?{score:r.score,advice:r.band.word}:null,recentWorkouts:recent,program:Object.fromEntries(Object.keys(TYPES).map(t=>[t,programFor(t).map(i=>({ex:i.ex,sets:i.sets,reps:`${i.repMin}-${i.repMax}`}))])),homeWorkouts:Object.fromEntries(Object.keys(TYPES).map(t=>[t,programFor(t,'home').map(i=>i.ex)])),thisWeekPlaces:pl.days.map(d=>d.type?d.place:null),exerciseLibrary:Object.fromEntries(Object.entries(EX).map(([k,v])=>[k,v.n])),rememberedNotes:S.notes.items};
+  return{today,weekday:WDL[wdOf(today)],settings:S.settings,uniTimetableNext14Days:[...Array(14)].map((_,i)=>addDays(today,i)).flatMap(d=>feedOn(d).map(e=>({date:d,start:e[1],end:e[2],title:e[4],kind:e[6]}))),examPeriods:S.feed?S.feed.examPeriods:[],classes:S.timetable.classes.map(({id,day,start,end,title,room,kind})=>({id,day,start,end,title,room,kind})),exams:S.timetable.exams,thisWeek:pl.days.map(d=>({date:d.date,day:WD[d.wd],workout:d.type,gymAt:d.type&&d.slot?toT(d.slot.start):null})),sleepLast7:[...Array(7)].map((_,i)=>sleepFor(addDays(today,-i))).filter(Boolean),readinessToday:r?{bodyScore:r.score}:null,todayLevel:(()=>{const dz=doseFor(today);return{level:dz.level,why:dz.text,head:dz.mind.why}})(),recentWorkouts:recent,program:Object.fromEntries(Object.keys(TYPES).map(t=>[t,programFor(t).map(i=>({ex:i.ex,sets:i.sets,reps:`${i.repMin}-${i.repMax}`}))])),homeWorkouts:Object.fromEntries(Object.keys(TYPES).map(t=>[t,programFor(t,'home').map(i=>i.ex)])),thisWeekPlaces:pl.days.map(d=>d.type?d.place:null),exerciseLibrary:Object.fromEntries(Object.entries(EX).map(([k,v])=>[k,v.n])),rememberedNotes:S.notes.items};
 }
 const COACH_RULES=ctx=>`You are the coach inside Rep Rhythm, a phone app that plans one university student's gym training and daily routine around their timetable and Garmin sleep data.
 Speak simply and briefly: short sentences, no jargon, at most about 90 words. Explain the reason first, then the numbers. Reply in the language the person writes in.
 Be honest. If a demand is a bad idea (for example too much training on little sleep), say so and offer a better option.
 If they report pain: tell them to stop the movement that hurts and offer a pain-free swap. Suggest a doctor or physio if it is sharp, swelling, or lasts more than a few days. Do not diagnose.
 Never suggest extreme dieting or more training than recovery allows. Never place gym during a class or an exam.
+Respect todayLevel: the app sets it from sleep, Body Battery, HRV and how busy the day is (go, steady, light, recover). On light or recover days never suggest heavier or longer training; explain the reason in plain words.
 
 Reply with ONLY one JSON object: {"reply":"text for the person","changes":[...]}.
 Use "changes" only when the person asks for something to change; otherwise use an empty array. The person confirms changes before they apply. Allowed items:
@@ -1260,7 +1488,7 @@ function applyChange(c){
   }
   return false;
 }
-const QUICK=['I want bigger arms','Move today’s gym to tomorrow','I only have 45 minutes today','My shoulder hurts on bench','What should I improve first?'];
+const QUICK=['How should I train today?','I want bigger arms','Move today’s gym to tomorrow','I only have 45 minutes today','My shoulder hurts on bench','What should I improve first?'];
 function viewCoach(){
   const turns=S.chat.turns;
   const unavailable=!sample;
@@ -1288,7 +1516,7 @@ async function coachSend(text){
   }
   coachBusy=false;save.chat();render();window.scrollTo(0,document.body.scrollHeight);
 }
-function aiError(e){const c=e&&e.code;return c==='rate_limited'?'The AI is at its limit right now. Try again a bit later.':c==='not_granted'?(window.RR?'Your AI key was refused. Check it in Settings, under Connections.':'This needs your permission to use Claude. Allow it, then try again.'):c==='invalid_json'?'That answer came back in the wrong format. Please send it again.':c==='session_expired'?'Please sign in to Claude again.':'That did not work. Please try again.'}
+function aiError(e){const c=e&&e.code;return c==='rate_limited'?'The AI is at its limit right now. Try again a bit later.':c==='not_granted'?(window.RR?'Your AI key was refused. Check it in Settings, under Connections.':'This needs your permission to use Claude. Allow it, then try again.'):c==='no_credit'?'Your Claude API account has no credit left. Add credit in the Claude Console, or use a Gemini key.':c==='invalid_json'?'That answer came back in the wrong format. Please send it again.':c==='session_expired'?'Please sign in to Claude again.':'That did not work. Please try again.'}
 
 /* ---------- Settings and sheets ---------- */
 let draft=null;
@@ -1305,6 +1533,8 @@ function settingsSheet(){
   <div class="field"><span class="flabel">Home workouts, no equipment</span>${chips('s-homeMode',[['busy','When the gym does not fit'],['off','Never']],d.homeMode)}</div>
   <div class="field"><span class="flabel">Always at home on</span><div class="chips" role="group">${WD.map((w,i)=>`<button class="chip ${(d.homeDays||[]).includes(i)?'on':''}" data-a="chip" data-g="s-homeDays" data-v="${i}">${w}</button>`).join('')}</div></div>
   <div class="field"><span class="flabel">Home workout length</span>${chips('s-homeMin',[[30,'30 min'],[40,'40'],[45,'45'],[60,'60']],d.homeMin)}</div>
+  <div class="field"><span class="flabel">5-minute wake-up routine</span>${chips('s-wakeRoutine',[['on','On'],['off','Off']],d.wakeRoutine)}</div>
+  ${window.RR?remindersBlock(d):''}
   <div class="two"><div class="field"><label for="s-wake">Usual wake-up</label><input id="s-wake" type="time" value="${esc(d.wake)}" data-d="wake"></div><div class="field"><label for="s-sleepH">Sleep goal (hours)</label><input id="s-sleepH" type="number" min="6" max="10" step="0.5" value="${d.sleepH}" data-d="sleepH"></div>
   <div class="field"><label for="s-commute">Trip to uni (min)</label><input id="s-commute" type="number" min="0" max="120" value="${d.commute}" data-d="commute"></div><div class="field"><label for="s-gymTravel">Trip to gym (min)</label><input id="s-gymTravel" type="number" min="0" max="60" value="${d.gymTravel}" data-d="gymTravel"></div>
   <div class="field"><label for="s-studyH">Study per day (hours)</label><input id="s-studyH" type="number" min="0" max="8" step="0.5" value="${d.studyH}" data-d="studyH"></div></div>
@@ -1319,11 +1549,22 @@ function connectSheet(msg,vals){
   <div class="card"><h3>GitHub: save and sync your data</h3><p class="small">Keeps a copy in your private Rico2 repository, and that is also where your Garmin numbers arrive.</p>
   <div class="field"><label for="k-owner">GitHub username</label><input id="k-owner" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(c.owner||'')}"></div>
   <div class="field"><label for="k-token">GitHub access token</label><input id="k-token" type="password" autocomplete="off" value="${esc(c.token||'')}"></div></div>
-  <div class="card"><h3>AI coach</h3><p class="small">A Google Gemini key turns on the coach and screenshot reading. On Google’s free plan, what you send may be used to improve its products. That includes your timetable and sleep numbers.</p>
-  <div class="field"><label for="k-ai">Gemini API key (optional)</label><input id="k-ai" type="password" autocomplete="off" value="${esc(c.aiKey||'')}"></div></div>
+  <div class="card"><h3>AI coach</h3><p class="small">Paste a Google Gemini key (free; on Google’s free plan, what you send may be used to improve its products) or a Claude API key (paid per use, separate from a Claude subscription). The app recognises which one it is.</p>
+  <div class="field"><label for="k-ai">Gemini or Claude API key (optional)</label><input id="k-ai" type="password" autocomplete="off" value="${esc(c.aiKey||'')}"></div></div>
   <p class="small">These keys stay on this device. Keep them private.</p>
   ${msg?`<div class="banner"><span class="plain">${esc(msg)}</span></div>`:''}
   <div class="wraprow"><button class="btn primary thin" data-a="save-connect">Save</button><button class="btn thin" data-a="test-connect">Test GitHub</button></div>`);
+}
+function remindersBlock(d){
+  const n=d.notify||{};
+  if(!n.on||!n.topic)return `<div class="card"><h3>Reminders on your phone</h3><p class="small">Notifications for your wake-up routine, before training and to wind down at night. They come through the free ntfy app, even when Rep Rhythm is closed.</p><button class="btn thin" data-a="notify-on">Turn on reminders</button></div>`;
+  return `<div class="card"><h3>Reminders on your phone</h3>
+  <p class="small">1. Install <b>ntfy</b> from Google Play: play.google.com/store/apps/details?id=io.heckel.ntfy<br>2. In ntfy, tap <b>+</b> and subscribe to this topic (keep it private, it works like a password):</p>
+  <div class="row"><code class="topic grow" id="n-topic">${esc(n.topic)}</code><button class="btn thin" data-a="notify-copy">Copy</button></div>
+  <p class="small">3. Tap <b>Send a test</b> below.</p>
+  <div class="chips" role="group">${[['wake','Wake-up'],['gym','Before training'],['wind','Wind down']].map(([k,l])=>`<button class="chip ${n[k]?'on':''}" data-a="chip" data-g="n-${k}" data-v="1">${l}</button>`).join('')}</div>
+  <p class="small" id="n-status" role="status"></p>
+  <div class="wraprow"><button class="btn thin" data-a="notify-test">Send a test</button><button class="btn thin" data-a="notify-off">Turn off</button></div></div>`;
 }
 function readConnect(){return{owner:document.getElementById('k-owner').value.trim(),token:document.getElementById('k-token').value.trim(),aiKey:document.getElementById('k-ai').value.trim()}}
 function addClassSheet(){sheetOpen(`<div class="row between"><h2>Add a class</h2><button class="x" data-a="sheet-close" aria-label="Close">×</button></div>
@@ -1385,6 +1626,13 @@ document.addEventListener('click',e=>{
     settings(){draft=clone(S.settings);settingsSheet()},
     'sheet-close'(){draft=null;sheetClose()},
     connect(){connectSheet()},
+    'wake-open'(){wakeSheet()},
+    'wk-go'(){const w=wakeT;if(!w)return;if(w.startedAt){w.elapsed+=Date.now()-w.startedAt;w.startedAt=null}else{w.startedAt=Date.now();keepAwake();if(!w.wasStarted){w.wasStarted=true;wakeSheet();return}}wakeTick()},
+    'wk-skip'(){const w=wakeT;if(!w)return;const ms=w.elapsed+(w.startedAt?Date.now()-w.startedAt:0);const nextStart=(Math.floor(ms/60000)+1)*60000;w.elapsed+=nextStart-ms;wakeTick()},
+    'notify-on'(){draft.notify={on:true,topic:(draft.notify&&draft.notify.topic)||newTopic(),wake:true,gym:true,wind:true};const t5=document.querySelector('#sheet>div').scrollTop;settingsSheet();document.querySelector('#sheet>div').scrollTop=t5},
+    'notify-off'(){draft.notify={...draft.notify,on:false};const t6=document.querySelector('#sheet>div').scrollTop;settingsSheet();document.querySelector('#sheet>div').scrollTop=t6},
+    async 'notify-copy'(){const t=draft.notify.topic;try{await navigator.clipboard.writeText(t);document.getElementById('n-status').textContent='Copied. Paste it in ntfy.'}catch(e){const r=document.createRange();r.selectNodeContents(document.getElementById('n-topic'));const sel=getSelection();sel.removeAllRanges();sel.addRange(r);document.getElementById('n-status').textContent='Selected. Copy it, then paste it in ntfy.'}},
+    async 'notify-test'(){const el=document.getElementById('n-status');el.textContent='Sending…';el.textContent=await testReminder(draft.notify.topic)},
     'save-connect'(){window.RR.saveConfig(readConnect());location.reload()},
     async 'test-connect'(){const c=readConnect();connectSheet('Checking…',c);connectSheet(await window.RR.testGitHub(c),c)},
     install(){window.RR.install().then(()=>render())},
@@ -1393,13 +1641,15 @@ document.addEventListener('click',e=>{
     'goto-train'(){tab='train';render();window.scrollTo(0,0)},
     chip(){
       const g=b.dataset.g;
+      if(g.startsWith('n-')){const k=g.slice(2);draft.notify={...draft.notify,[k]:!draft.notify[k]};const t4=document.querySelector('#sheet>div').scrollTop;settingsSheet();document.querySelector('#sheet>div').scrollTop=t4;return}
+      if(g==='wk-ver'){wakeT.ver=v;wakeSheet();return}
       if(g==='s-homeDays'){const n=+v,a=new Set(draft.homeDays||[]);a.has(n)?a.delete(n):a.add(n);draft.homeDays=[...a].sort();const t3=document.querySelector('#sheet>div').scrollTop;settingsSheet();document.querySelector('#sheet>div').scrollTop=t3;return}
       if(g.startsWith('s-')){const k=g.slice(2);draft[k]=isNaN(+v)?v:+v;const top2=document.querySelector('#sheet>div').scrollTop;settingsSheet();document.querySelector('#sheet>div').scrollTop=top2;return}
       const st=window.scrollY;sleepDraft[g]=isNaN(+v)?v:+v;if(g==='hrv'&&b.classList.contains('on'))delete sleepDraft.hrv;render();window.scrollTo(0,st);
     },
     'save-settings'(){
       document.querySelectorAll('#sheet [data-d]').forEach(el=>{const k=el.dataset.d;draft[k]=el.type==='time'?el.value:(+el.value)});
-      draft.sleepH=clamp(draft.sleepH||8,6,10);draft.setupDone=true;S.settings=draft;draft=null;save.settings();sheetClose();render();
+      draft.sleepH=clamp(draft.sleepH||8,6,10);draft.setupDone=true;S.settings=draft;draft=null;save.settings();invalidate();sheetClose();render();if(window.RR)syncReminders(true);
     },
     'save-sleep'(){const date=todayKey();const l=sleepDraft;if(!['sleepScore','bodyBattery','mind','sore','hrv'].some(k=>l[k]!=null&&l[k]!=='')&&!(l.bed&&l.wake)){document.getElementById('sleep-msg').textContent='Set at least one number first, such as your sleep score.';return}l.date=date;l.source='manual';['sleepScore','bodyBattery'].forEach(k=>{if(l[k]!=null)l[k]=+l[k]});if(l.restingHR)l.restingHR=+l.restingHR;else delete l.restingHR;if(l.bed&&l.wake)l.sleepHours=Math.round(hoursOf({bed:l.bed,wake:l.wake})*10)/10;S.sleep[date]=clone(l);save.sleep(date);sleepDraft=null;editingSleep=false;render();window.scrollTo(0,0)},
     'edit-sleep'(){editingSleep=true;sleepDraft=clone(S.sleep[todayKey()]);render()},
@@ -1474,6 +1724,8 @@ document.addEventListener('visibilitychange',async()=>{
 });
 
 /* ---------- Start ---------- */
+function openFromLink(){if(location.hash==='#wake'){tab='today';render();wakeSheet();try{history.replaceState(null,'',location.pathname)}catch(e){}}}
+window.addEventListener('hashchange',openFromLink);
 async function boot(){
   lsLoad();render();
   if(!window.claude||!window.claude.use){loaded=true;setSync('Saved on this device only.');render();return}
@@ -1483,6 +1735,7 @@ async function boot(){
   if(!db)setSync('Saved on this device only.');
   await pull();lastPull=Date.now();flushAll();loaded=true;
   const act=document.activeElement;if(!(act&&/INPUT|TEXTAREA/.test(act.tagName)))render();
+  openFromLink();
 }
 boot();
 </script>

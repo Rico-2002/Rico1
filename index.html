@@ -107,6 +107,15 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 .t-arms .dchg{background:rgba(19,24,33,.1)}
 .day-card .dchg ul{list-style:disc;padding-left:18px;gap:3px;font-size:.88rem}
 .day-card .dchg li{display:list-item}
+.day-card ul.lvl{gap:7px}
+.day-card ul.lvl li{align-items:center}
+.day-card ul.lvl li>span:first-child{display:flex;flex-direction:column;min-width:0}
+.day-card ul.lvl small{font-size:.78rem;opacity:.85}
+.lvlpill{font-size:.78rem;font-weight:700;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.22);white-space:nowrap}
+.lvlbar{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:.78rem;font-weight:600;color:var(--ink-3);flex-wrap:wrap}
+.lvlbar .dots{display:flex;gap:4px}
+.lvlbar .dots i{width:16px;height:6px;border-radius:3px;background:var(--surface-2);display:block}
+.lvlbar .dots i.on{background:var(--full)}
 .wk-now{background:var(--surface-2);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:6px;text-align:center;align-items:center}
 .wk-now strong{font:700 1.9rem/1.05 var(--display);letter-spacing:.01em}
 .wk-time{font:700 3.2rem/1 var(--display);font-variant-numeric:tabular-nums}
@@ -459,7 +468,7 @@ const EX={
  close_bench:{n:'Close-grip bench press',m:'triceps',t:'bb',k:'c',inc:2.5,sub:'db_close_press',cue:'Hands shoulder-width. Elbows stay close to your body.'},
  db_close_press:{n:'Close-grip dumbbell press',m:'triceps',t:'db',k:'c',inc:2,cue:'Press the dumbbells together the whole way.'},
  pulldown:{n:'Lat pulldown',m:'back',t:'mc',k:'c',inc:5,sub:'db_pullover',cue:'Pull your elbows to your ribs, chest up.'},
- pullup:{n:'Pull-up',m:'back',t:'bw',k:'c',inc:2.5,cue:'Full hang to chin over bar. Use a band if needed.'},
+ pullup:{prop:1,n:'Pull-up',m:'back',t:'bw',k:'c',inc:2.5,cue:'Full hang to chin over bar. Use a band if needed.'},
  db_pullover:{n:'Dumbbell pullover',m:'back',t:'db',k:'c',inc:2,cue:'Slight bend in the elbows, big stretch overhead.'},
  bb_row:{n:'Barbell row',m:'back',t:'bb',k:'c',inc:2.5,sub:'db_row',cue:'Flat back, pull to your belly button.'},
  db_row:{n:'One-arm dumbbell row',m:'back',t:'db',k:'c',inc:2,cue:'Pull your elbow toward your hip.'},
@@ -482,44 +491,56 @@ const EX={
  calf:{n:'Standing calf raise',m:'calves',t:'mc',k:'i',inc:5,sub:'db_calf',cue:'Pause at the bottom, full height at the top.'},
  db_calf:{n:'Dumbbell calf raise',m:'calves',t:'db',k:'i',inc:2,cue:'Stand on a step for more range.'},
  cable_crunch:{n:'Cable crunch',m:'core',t:'mc',k:'i',inc:2.5,sub:'dead_bug',cue:'Curl your ribs to your hips.'},
- hanging_knee:{n:'Hanging knee raise',m:'core',t:'bw',k:'i',inc:2.5,cue:'Curl your hips up, no swinging.'},
+ hanging_knee:{prop:1,n:'Hanging knee raise',m:'core',t:'bw',k:'i',inc:2.5,cue:'Curl your hips up, no swinging.'},
  dead_bug:{n:'Dead bug',m:'core',t:'bw',k:'i',inc:2.5,cue:'Lower back stays pressed to the floor.'},
- incline_push_up:{n:'Incline push-up',m:'chest',t:'bw',k:'c',inc:1,cue:'Hands on a table or bed edge, body in one straight line.'},
+ incline_push_up:{prop:1,n:'Incline push-up',m:'chest',t:'bw',k:'c',inc:1,cue:'Hands on a table or bed edge, body in one straight line.'},
  push_up:{n:'Push-up',m:'chest',t:'bw',k:'c',inc:1,cue:'Hands under your shoulders, chest to the floor, body straight like a plank.'},
- decline_push_up:{n:'Decline push-up',m:'chest',t:'bw',k:'c',inc:1,cue:'Feet on a chair or bed, hands on the floor.'},
+ decline_push_up:{prop:1,n:'Decline push-up',m:'chest',t:'bw',k:'c',inc:1,cue:'Feet on a chair or bed, hands on the floor.'},
  archer_push_up:{n:'Archer push-up',m:'chest',t:'bw',k:'c',inc:1,cue:'Wide hands, lower towards one hand while the other arm stays straight. Count each side.'},
  diamond_push_up:{n:'Diamond push-up',m:'triceps',t:'bw',k:'c',inc:1,cue:'Hands close together under your chest. Knees down if you need to.'},
  pike_push_up:{n:'Pike push-up',m:'shoulders',t:'bw',k:'c',inc:1,cue:'Hips high like an upside-down V, lower your head between your hands.'},
- elevated_pike:{n:'Feet-up pike push-up',m:'shoulders',t:'bw',k:'c',inc:1,cue:'Feet on a chair, hips high, lower your head slowly towards the floor.'},
- chair_dip:{n:'Chair dip',m:'triceps',t:'bw',k:'c',inc:1,cue:'Chair against a wall so it cannot slide. Knees bent, lower until your elbows reach 90°.'},
- chair_dip_straight:{n:'Chair dip, legs straight',m:'triceps',t:'bw',k:'c',inc:1,cue:'Chair against a wall, legs straight out, lower until your elbows reach 90°.'},
- table_row_bent:{n:'Table row, knees bent',m:'back',t:'bw',k:'c',inc:1,cue:'Only under a solid table that cannot tip, so test it first. Lie under it, grip the edge, pull your chest up.'},
- table_row:{n:'Table row, legs straight',m:'back',t:'bw',k:'c',inc:1,cue:'Solid table only. Body straight from heels to head, pull your chest to the edge.'},
+ elevated_pike:{prop:1,n:'Feet-up pike push-up',m:'shoulders',t:'bw',k:'c',inc:1,cue:'Feet on a chair, hips high, lower your head slowly towards the floor.'},
+ chair_dip:{prop:1,n:'Chair dip',m:'triceps',t:'bw',k:'c',inc:1,cue:'Chair against a wall so it cannot slide. Knees bent, lower until your elbows reach 90°.'},
+ chair_dip_straight:{prop:1,n:'Chair dip, legs straight',m:'triceps',t:'bw',k:'c',inc:1,cue:'Chair against a wall, legs straight out, lower until your elbows reach 90°.'},
+ table_row_bent:{prop:1,n:'Table row, knees bent',m:'back',t:'bw',k:'c',inc:1,cue:'Only under a solid table that cannot tip, so test it first. Lie under it, grip the edge, pull your chest up.'},
+ table_row:{prop:1,n:'Table row, legs straight',m:'back',t:'bw',k:'c',inc:1,cue:'Solid table only. Body straight from heels to head, pull your chest to the edge.'},
  prone_ytw:{n:'Y-T-W raises',m:'back',t:'bw',k:'i',inc:1,cue:'Lie face down and lift your arms into a Y, then a T, then a W. One round is one rep.'},
  reverse_snow_angel:{n:'Reverse snow angel',m:'back',t:'bw',k:'i',inc:1,cue:'Face down, arms lifted, sweep them from your hips to over your head and back.'},
  superman:{n:'Superman hold',m:'back',t:'bw',k:'i',u:'s',inc:5,cue:'Face down, lift your arms, chest and legs a little off the floor and hold.'},
  squat_bw:{n:'Bodyweight squat',m:'quads',t:'bw',k:'c',inc:1,cue:'Feet shoulder-width, sit back and down, chest up.'},
  split_squat_bw:{n:'Split squat',m:'quads',t:'bw',k:'c',inc:1,cue:'Long step, lower the back knee towards the floor. Count each leg.'},
- bulgarian_bw:{n:'Bulgarian split squat',m:'quads',t:'bw',k:'c',inc:1,cue:'Back foot on a chair or bed. Count each leg.'},
+ bulgarian_bw:{prop:1,n:'Bulgarian split squat',m:'quads',t:'bw',k:'c',inc:1,cue:'Back foot on a chair or bed. Count each leg.'},
  reverse_lunge:{n:'Reverse lunge',m:'quads',t:'bw',k:'c',inc:1,cue:'Step back, lower the knee, push through the front heel. Count each leg.'},
  glute_bridge:{n:'Glute bridge',m:'hamstrings',t:'bw',k:'i',inc:1,cue:'On your back, feet flat, squeeze your glutes to lift your hips and pause at the top.'},
  single_leg_bridge:{n:'Single-leg glute bridge',m:'hamstrings',t:'bw',k:'i',inc:1,cue:'One foot down, the other leg up. Count each side.'},
  sl_rdl_bw:{n:'Single-leg reach',m:'hamstrings',t:'bw',k:'i',inc:1,cue:'Stand on one leg, hinge forward with a flat back and reach towards the floor. Count each leg.'},
- calf_raise_bw:{n:'Calf raise on a step',m:'calves',t:'bw',k:'i',inc:1,cue:'Heels off a stair, rise all the way up, lower slowly.'},
- single_calf_bw:{n:'Single-leg calf raise',m:'calves',t:'bw',k:'i',inc:1,cue:'One foot on the step, hold the wall for balance. Count each leg.'},
- wall_sit:{n:'Wall sit',m:'quads',t:'bw',k:'i',u:'s',inc:5,cue:'Back against the wall, thighs parallel to the floor.'},
+ calf_raise_bw:{prop:1,n:'Calf raise on a step',m:'calves',t:'bw',k:'i',inc:1,cue:'Heels off a stair, rise all the way up, lower slowly.'},
+ single_calf_bw:{prop:1,n:'Single-leg calf raise',m:'calves',t:'bw',k:'i',inc:1,cue:'One foot on the step, hold the wall for balance. Count each leg.'},
+ wall_sit:{prop:1,n:'Wall sit',m:'quads',t:'bw',k:'i',u:'s',inc:5,cue:'Back against the wall, thighs parallel to the floor.'},
  plank:{n:'Plank',m:'core',t:'bw',k:'i',u:'s',inc:5,cue:'Forearms down, body in one straight line, squeeze your glutes.'},
+ knee_push_up:{n:'Knee push-up',m:'chest',t:'bw',k:'c',inc:1,cue:'Knees on the floor, body straight from knees to head, chest to the floor.'},
+ pseudo_planche_push_up:{n:'Pseudo-planche push-up',m:'chest',t:'bw',k:'c',inc:1,cue:'Hands turned out beside your hips, lean your shoulders forward past your hands, then push.'},
+ cossack_squat:{n:'Cossack squat',m:'quads',t:'bw',k:'c',inc:1,cue:'Wide stance, sit deep onto one leg while the other stays straight. Count each side.'},
+ skater_squat:{n:'Skater squat',m:'quads',t:'bw',k:'c',inc:1,cue:'Stand on one leg, lower the back knee to just above the floor behind you. Count each leg.'},
+ pistol_squat:{n:'Pistol squat',m:'quads',t:'bw',k:'c',inc:1,cue:'Stand on one leg, other leg straight out in front, sit all the way down and stand up. Count each leg.'},
+ hamstring_walkout:{n:'Hamstring walkout',m:'hamstrings',t:'bw',k:'i',inc:1,cue:'Hold a glute bridge, walk your heels out step by step, then walk back in. One out-and-back is one rep.'},
+ back_widow:{n:'Back widow',m:'back',t:'bw',k:'i',inc:1,cue:'Lie on your back, knees bent, drive your elbows into the floor to lift your upper back. Pause, lower slowly.'},
+ hollow_hold:{n:'Hollow body hold',m:'core',t:'bw',k:'i',u:'s',inc:5,cue:'On your back, lower back pressed down, arms and legs straight and just off the floor.'},
  side_plank:{n:'Side plank',m:'core',t:'bw',k:'i',u:'s',inc:5,cue:'On one forearm with your hips up. The time is per side.'},
 };
 /* Harder versions, easiest first. The app moves you up once you reach the top of the range */
-const CHAINS={incline_push_up:['incline_push_up','push_up','decline_push_up','archer_push_up'],pike_push_up:['pike_push_up','elevated_pike'],chair_dip:['chair_dip','chair_dip_straight'],table_row_bent:['table_row_bent','table_row'],squat_bw:['squat_bw','split_squat_bw','bulgarian_bw'],glute_bridge:['glute_bridge','single_leg_bridge'],calf_raise_bw:['calf_raise_bw','single_calf_bw']};
-const HOME={
- push:['incline_push_up','pike_push_up','chair_dip','diamond_push_up','plank'],
- pull:['table_row_bent','prone_ytw','reverse_snow_angel','superman','dead_bug'],
- legs:['squat_bw','reverse_lunge','glute_bridge','sl_rdl_bw','calf_raise_bw','wall_sit'],
- arms:['diamond_push_up','chair_dip','table_row_bent','pike_push_up','side_plank'],
- full:['incline_push_up','squat_bw','table_row_bent','glute_bridge','reverse_lunge','plank'],
+const CHAINS={
+ knee_push_up:['knee_push_up','push_up','diamond_push_up','archer_push_up','pseudo_planche_push_up'],
+ squat_bw:['squat_bw','split_squat_bw','cossack_squat','skater_squat','pistol_squat'],
+ glute_bridge:['glute_bridge','single_leg_bridge','hamstring_walkout'],
+ reverse_snow_angel:['reverse_snow_angel','prone_ytw','back_widow'],
+ dead_bug:['dead_bug','plank','hollow_hold'],
 };
+/* Every home workout: the same 5 moves for the whole body, each at your current level */
+const HOME5=['knee_push_up','squat_bw','glute_bridge','reverse_snow_angel','dead_bug'];
+const HOME={push:HOME5,pull:HOME5,legs:HOME5,arms:HOME5,full:HOME5};
+const HOME_ROLE={knee_push_up:'Chest, shoulders, triceps',squat_bw:'Thighs and glutes',glute_bridge:'Glutes and hamstrings',reverse_snow_angel:'Upper back and posture',dead_bug:'Core'};
+function levelOf(ex){const ch=chainOf(ex);if(!ch)return null;const i=ch.indexOf(ex);return{n:i+1,of:ch.length,next:ch[i+1]||null,root:ch[0]}}
 const MUSCLES=['chest','back','shoulders','biceps','triceps','quads','hamstrings','calves','core'];
 const TEMPLATES={
  push:['bench','incline_db','ohp_db','cable_fly','lateral','pushdown'],
@@ -738,6 +759,7 @@ function planWeek(mon){
       if(s2){d.earlier=s2.start<d.slot.start;d.slot={...s2,place:d.place}}else d.slot={...d.slot,end:d.slot.start+len};
     }
   });
+  days.forEach(d=>{if(d.type&&d.place==='home')d.type='full'});
   days.forEach(d=>{d.why=dayWhy(d);d.blocks=buildBlocks(d)});
   return weekCache[mon]={mon,days,deload:isDeload(mon)};
 }
@@ -1064,8 +1086,8 @@ function workoutItems(type,date,mode,deload,place){
       return to?{...it,...schemeFor(exInfo(to)),ex:to,from:it.ex}:it;
     }).filter(it=>{if(seen.has(it.ex))return false;seen.add(it.ex);return true});
     list=list.map(it=>({...it,sets:Math.max(2,it.sets-1)}));
-    list=fitToTime(list,lightMinutes(place)).slice(0,4);
-  }else list=fitToTime(list,base);
+    list=place==='home'?list:fitToTime(list,lightMinutes(place)).slice(0,4);
+  }else if(place!=='home')list=fitToTime(list,base);
   const restAdd=mode==='light'?30:mode==='steady'?15:0;
   return list.map(it=>{
     const sets=(mode!=='light'&&deload)?Math.max(2,it.sets-1):it.sets;
@@ -1235,7 +1257,9 @@ function viewTrain(){
   const past=Object.values(S.sessions).filter(s=>s.finished).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
   const order=d.type?[d.type,...Object.keys(TYPES).filter(t=>t!==d.type)]:Object.keys(TYPES);
   const place=trainPlace||(d.type?d.place:'gym');
-  return pageTop('Train','Pick a session')+`<div class="chips" role="group" aria-label="Where">${[['gym','At the gym'],['home','At home, no equipment']].map(([k,l])=>`<button class="chip ${place===k?'on':''}" data-a="train-place" data-v="${k}">${l}</button>`).join('')}</div>`+`<div class="wraprow" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${order.map(t=>`<button class="day-card t-${t}" style="text-align:left;gap:4px;padding:14px" data-a="start" data-v="${t}" data-p="${place}"><span style="font:700 1.6rem/1 var(--display);text-transform:uppercase">${esc(TYPES[t].l)}</span><span style="font-size:.82rem">${esc(TYPES[t].s)}</span>${t===d.type?'<span class="pill" style="width:fit-content;margin-top:5px">Planned today</span>':''}</button>`).join('')}</div>
+  const homeList=place==='home'?programFor('full','home',date):[];
+  const homeCard=`<section class="day-card t-full" style="gap:9px"><div class="row between"><div class="meta">${S.settings.homeMin} min · bodyweight only</div><span class="pill">5 moves</span></div><h2>Full body at home</h2><p style="font-size:.9rem">No chair, no table, nothing to hold. Each move has harder levels: reach the top of the rep range on every set, and next time you get the next level.</p><ul class="lvl">${homeList.map(it=>{const lv=levelOf(it.ex);return `<li><span><b>${esc(exInfo(it.ex).n)}</b><small>${esc(HOME_ROLE[lv?lv.root:'']||'')}</small></span><span class="lvlpill">Level ${lv?lv.n:1}/${lv?lv.of:1}</span></li>`}).join('')}</ul><button class="btn go" data-a="start" data-v="full" data-p="home">Start home workout</button></section>`;
+  return pageTop('Train','Pick a session')+`<div class="chips" role="group" aria-label="Where">${[['gym','At the gym'],['home','At home, no equipment']].map(([k,l])=>`<button class="chip ${place===k?'on':''}" data-a="train-place" data-v="${k}">${l}</button>`).join('')}</div>`+(place==='home'?homeCard:'')+`<div class="wraprow" ${place==='home'?'hidden':''} style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${order.map(t=>`<button class="day-card t-${t}" style="text-align:left;gap:4px;padding:14px" data-a="start" data-v="${t}" data-p="${place}"><span style="font:700 1.6rem/1 var(--display);text-transform:uppercase">${esc(TYPES[t].l)}</span><span style="font-size:.82rem">${esc(TYPES[t].s)}</span>${t===d.type?'<span class="pill" style="width:fit-content;margin-top:5px">Planned today</span>':''}</button>`).join('')}</div>
   <section class="card"><h2>Recent workouts</h2>${past.length?`<div class="list">${past.map(s=>{const n=(s.exercises||[]).reduce((a,e)=>a+e.sets.filter(x=>x.done).length,0);return `<div><div class="grow"><b style="font-weight:600">${esc(TYPES[s.type].l)}${s.place==='home'?' at home':''}</b> <span class="small">${shortDate(s.date)}</span></div><span class="small">${n} sets</span></div>`}).join('')}</div>`:'<div class="empty">Your finished workouts appear here. Tap a coloured card to do your first one.</div>'}</section>`;
 }
 function viewSession(s){
@@ -1258,6 +1282,7 @@ function exerciseCard(s,e,x){
   let warm='';
   if(info.k==='c'&&w0>=30&&info.t==='bb')warm=`<p class="small">Warm up: ${fmtKg(20)} kg × 10, then ${fmtKg(roundTo(w0*.6,2.5))} kg × 5.</p>`;
   return `<section class="card ${allDone?'':''}"><div class="ex-head"><div class="grow"><span class="mtag">${esc(info.m)}</span><h3>${esc(info.n)}</h3></div><button class="linkbtn" data-a="swap" data-x="${x}">Swap</button></div>
+  ${(()=>{const lv=bw&&levelOf(e.ex);return lv?`<div class="lvlbar"><span>Level ${lv.n} of ${lv.of}</span><span class="dots">${[...Array(lv.of)].map((_,k)=>`<i class="${k<lv.n?'on':''}"></i>`).join('')}</span><span>${lv.next?'Next: '+esc(exInfo(lv.next).n):'Top level'}</span></div>`:''})()}
   <div class="target">${tagTxt?`<span class="mtag ${tagCls}">${tagTxt}</span>`:''}<strong>${esc(t.title||'')}</strong><span class="why">${esc(t.why||'')}</span>${t.last?`<span class="small">${esc(t.last)}</span>`:''}</div>
   ${plates}${warm}
   <p class="small">${esc(info.cue)} Goal: ${e.repMin}–${e.repMax} ${unit==='sec'?'seconds':'reps'}.</p>
@@ -1600,7 +1625,7 @@ function weekDay(date){return planWeek(monOf(date)).days[wdOf(date)]}
 function swapSheet(x){
   const s=activeSession(),e=s.exercises[x],info=exInfo(e.ex);
   const eq=S.settings.equip;
-  const opts=Object.entries(EX).filter(([k,v])=>v.m===info.m&&k!==e.ex&&(s.place==='home'?v.t==='bw':(eq!=='db'||v.t==='db'||v.t==='bw')));
+  const opts=Object.entries(EX).filter(([k,v])=>v.m===info.m&&k!==e.ex&&(s.place==='home'?(v.t==='bw'&&!v.prop):(eq!=='db'||v.t==='db'||v.t==='bw')));
   sheetOpen(`<div class="row between"><h2>Swap ${esc(info.n)}</h2><button class="x" data-a="sheet-close" aria-label="Close">×</button></div><p class="plain">Same muscle, different exercise. Useful if a machine is taken or something hurts.</p><div class="list">${opts.map(([k,v])=>`<div><span class="grow">${esc(v.n)}</span><button class="btn thin" data-a="do-swap" data-x="${x}" data-v="${k}">Use</button></div>`).join('')}</div>`);
 }
 function recoverySheet(){sheetOpen(`<div class="row between"><h2>Easy day</h2><button class="x" data-a="sheet-close" aria-label="Close">×</button></div><p class="plain">Blood flow helps you recover without adding stress. About 30 minutes.</p><div class="list">${RECOVERY.map(x=>`<div><div class="grow"><b style="font-weight:600">${esc(x[0])}</b><div class="small">${esc(x[1])}</div></div></div>`).join('')}</div><button class="btn primary full" data-a="sheet-close">Done</button>`)}

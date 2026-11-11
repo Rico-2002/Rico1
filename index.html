@@ -181,6 +181,8 @@ code.topic{font:600 .82rem/1.3 ui-monospace,Menlo,Consolas,monospace;background:
 .wg{display:grid;grid-template-columns:28px repeat(7,minmax(0,1fr));column-gap:2px}
 .wg-h{height:40px;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:.73rem;font-weight:600;color:var(--ink-2);line-height:1.1}
 .wg-h.sel{background:var(--ink);color:var(--bg)}
+.wg-h{position:relative}.wg-dl{position:absolute;top:3px;right:3px;width:8px;height:8px;border-radius:50%;background:var(--warn);box-shadow:0 0 0 2px var(--surface)}
+.dl-row{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--warn) 16%,transparent);margin-bottom:10px}.dl-row i{width:10px;height:10px;border-radius:50%;background:var(--warn);flex:none;margin-top:6px}
 .wg-h.today:not(.sel){color:var(--accent)}
 .wg-col{position:relative;background:var(--surface-2);border-radius:6px;height:352px;overflow:hidden;width:100%;display:block}
 .wg-axis{position:relative;height:352px}
@@ -1135,6 +1137,7 @@ function viewToday(){
     workoutCard(d,r)+deadlinesCard()+
     `<section class="card"><h2>Your day</h2><p class="plain">Built around your classes. Tick things off as you go.</p>${timeline(d,true)}</section>`;
 }
+function dlOn(date){const f=S.feed;return f&&Array.isArray(f.deadlines)?f.deadlines.filter(x=>Array.isArray(x)&&x[0]===date):[]}
 function deadlinesAhead(){const f=S.feed,t=todayKey();return f&&Array.isArray(f.deadlines)?f.deadlines.filter(x=>Array.isArray(x)&&x[0]>=t).sort((a,b)=>(a[0]+a[1]).localeCompare(b[0]+b[1])):[]}
 function deadlinesCard(){
   const all=deadlinesAhead(),t=todayKey();if(!all.length)return '';
@@ -1301,15 +1304,15 @@ function viewWeek(){
   selDay=selDay&&selDay>=weekMon&&selDay<=addDays(weekMon,6)?selDay:(today>=weekMon&&today<=addDays(weekMon,6)?today:weekMon);
   const sel=pl.days[wdOf(selDay)];
   const hours=[8,10,12,14,16,18,20,22];
-  const grid=`<div class="wg" aria-label="Week plan"><div></div>${pl.days.map(d=>`<button class="wg-h ${d.date===selDay?'sel':''} ${d.date===today?'today':''}" data-a="sel-day" data-v="${d.date}"><span>${WD[d.wd]}</span><span>${parseD(d.date).getDate()}</span></button>`).join('')}
+  const grid=`<div class="wg" aria-label="Week plan"><div></div>${pl.days.map(d=>`<button class="wg-h ${d.date===selDay?'sel':''} ${d.date===today?'today':''}" data-a="sel-day" data-v="${d.date}"><span>${WD[d.wd]}</span><span>${parseD(d.date).getDate()}</span>${dlOn(d.date).length?`<i class="wg-dl" aria-label="Deadline"></i>`:''}</button>`).join('')}
   <div class="wg-axis">${hours.map(h=>`<span style="top:${wgY(h*60)}px">${h}</span>`).join('')}</div>
   ${pl.days.map(d=>`<button class="wg-col" data-a="sel-day" data-v="${d.date}" aria-label="${WDL[d.wd]}">${d.blocks.filter(b=>['class','exam','gym','study'].includes(b.kind)).map(b=>{const y=wgY(b.start),h=Math.max(10,wgY(b.end)-y);const lab=b.kind==='gym'?(b.place==='home'?'Home':TYPES[b.type].l):b.kind==='class'?b.title:b.kind==='exam'?'Exam':'';return `<span class="wg-b ${b.kind==='gym'?'t-'+b.type:''}" style="top:${y}px;height:${h}px;${b.kind==='gym'?'':`background:${blockColor(b)};${b.kind==='study'?'opacity:.55;':''}`}">${h>=20?esc(lab):''}</span>`}).join('')}</button>`).join('')}</div>`;
   const g=pl.days.filter(d=>d.type).length;
   return pageTop('Week',`${shortDate(weekMon)} – ${shortDate(addDays(weekMon,6))}`)+exampleBanner()+
   `<section class="card"><div class="weeknav"><button class="btn thin" data-a="week-move" data-v="-7">‹ Prev</button><b>${g} gym day${g===1?'':'s'}</b><button class="btn thin" data-a="week-move" data-v="7">Next ›</button></div>${grid}
-  <div class="legend"><span><i style="background:var(--k-class)"></i>Class</span><span><i style="background:var(--k-study);opacity:.55"></i>Study</span><span><i style="background:var(--k-exam)"></i>Exam</span>${Object.keys(TYPES).filter(t=>pl.days.some(d=>d.type===t)).map(t=>`<span><i style="background:var(--${t})"></i>${TYPES[t].l}</span>`).join('')}</div>
+  <div class="legend"><span><i style="background:var(--k-class)"></i>Class</span><span><i style="background:var(--k-study);opacity:.55"></i>Study</span><span><i style="background:var(--k-exam)"></i>Exam</span>${pl.days.some(d=>dlOn(d.date).length)?'<span><i style="background:var(--warn);border-radius:50%"></i>Deadline</span>':''}${Object.keys(TYPES).filter(t=>pl.days.some(d=>d.type===t)).map(t=>`<span><i style="background:var(--${t})"></i>${TYPES[t].l}</span>`).join('')}</div>
   <p class="plain">Grey blocks are your classes. Coloured blocks are the gym, placed in your free time and spread across the week so each muscle gets time to recover.${pl.deload?' <b>This is a lighter week:</b> about 10% less weight and one set less.':''}</p></section>
-  <section class="card"><div class="row between"><h2>${WDL[sel.wd]}</h2>${sel.type?`<span class="mtag">${esc(TYPES[sel.type].l)}</span>`:'<span class="mtag">Rest</span>'}</div><p class="plain">${esc(sel.why)}</p>${timeline(sel,false)}</section>
+  <section class="card"><div class="row between"><h2>${WDL[sel.wd]}</h2>${sel.type?`<span class="mtag">${esc(TYPES[sel.type].l)}</span>`:'<span class="mtag">Rest</span>'}</div><p class="plain">${esc(sel.why)}</p>${dlOn(sel.date).map(x=>`<div class="dl-row"><i></i><div><b style="font-weight:600">Due ${x[1]?esc(x[1]):'today'}: ${esc(x[3])}</b><div class="small">${esc(x[2])} · Moodle</div></div></div>`).join('')}${timeline(sel,false)}</section>
   ${timetableCard()}`;
 }
 function feedCard(){

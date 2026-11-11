@@ -1132,8 +1132,16 @@ function viewToday(){
   const r=readinessFor(date);
   return pageTop('Today',`${WDL[d.wd]} ${dt.getDate()} ${MON[dt.getMonth()]}`)+installCard()+connectCard()+setupCard()+exampleBanner()+
     wakeCard()+(r?readinessCard(r,date):waitingCard())+
-    workoutCard(d,r)+
+    workoutCard(d,r)+deadlinesCard()+
     `<section class="card"><h2>Your day</h2><p class="plain">Built around your classes. Tick things off as you go.</p>${timeline(d,true)}</section>`;
+}
+function deadlinesAhead(){const f=S.feed,t=todayKey();return f&&Array.isArray(f.deadlines)?f.deadlines.filter(x=>Array.isArray(x)&&x[0]>=t).sort((a,b)=>(a[0]+a[1]).localeCompare(b[0]+b[1])):[]}
+function deadlinesCard(){
+  const all=deadlinesAhead(),t=todayKey();if(!all.length)return '';
+  const soon=all.filter(x=>diffDays(x[0],t)<=30),list=(soon.length?soon:all.slice(0,1)).slice(0,6),more=all.length-list.length;
+  const when=x=>{const n=diffDays(x[0],t);return n===0?'Today':n===1?'Tomorrow':`In ${n} days`};
+  const col=x=>{const n=diffDays(x[0],t);return n<=2?'var(--bad-ink)':n<=6?'var(--warn-ink)':'var(--ink-3)'};
+  return `<section class="card"><h2>Moodle deadlines</h2><p class="plain">What you need to hand in soon, from your Moodle courses.</p><div class="list">${list.map(x=>`<div><div class="grow" style="min-width:0"><b style="font-weight:600">${esc(x[3])}</b><div class="small">${esc(x[2])}</div></div><div style="text-align:right;flex:none"><b style="font-weight:600;color:${col(x)}">${when(x)}</b><div class="small">${shortDate(x[0])}${x[1]?' · '+esc(x[1]):''}</div></div></div>`).join('')}</div>${more>0?`<p class="small">${more} more later this semester.</p>`:''}</section>`;
 }
 function waitingCard(){
   const any=S.garmin&&S.garmin.days&&Object.keys(S.garmin.days).length;
@@ -1411,7 +1419,7 @@ function coachContext(){
   const today=todayKey(),pl=planWeek(monOf(today));
   const recent=Object.values(S.sessions).filter(s=>(s.exercises||[]).length).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8).map(s=>({date:s.date,type:s.type,exercises:s.exercises.filter(e=>e.sets.some(a=>a.done)).map(e=>({ex:e.ex,sets:e.sets.filter(a=>a.done).map(a=>`${a.w}x${a.r}`).join(' '),effort:e.effort}))}));
   const r=readinessFor(today);
-  return{today,weekday:WDL[wdOf(today)],settings:S.settings,uniTimetableNext14Days:[...Array(14)].map((_,i)=>addDays(today,i)).flatMap(d=>feedOn(d).map(e=>({date:d,start:e[1],end:e[2],title:e[4],kind:e[6]}))),examPeriods:S.feed?S.feed.examPeriods:[],classes:S.timetable.classes.map(({id,day,start,end,title,room,kind})=>({id,day,start,end,title,room,kind})),exams:S.timetable.exams,thisWeek:pl.days.map(d=>({date:d.date,day:WD[d.wd],workout:d.type,gymAt:d.type&&d.slot?toT(d.slot.start):null})),sleepLast7:[...Array(7)].map((_,i)=>sleepFor(addDays(today,-i))).filter(Boolean),readinessToday:r?{bodyScore:r.score}:null,todayLevel:(()=>{const dz=doseFor(today);return{level:dz.level,why:dz.text,head:dz.mind.why}})(),recentWorkouts:recent,program:Object.fromEntries(Object.keys(TYPES).map(t=>[t,programFor(t).map(i=>({ex:i.ex,sets:i.sets,reps:`${i.repMin}-${i.repMax}`}))])),homeWorkouts:Object.fromEntries(Object.keys(TYPES).map(t=>[t,programFor(t,'home').map(i=>i.ex)])),thisWeekPlaces:pl.days.map(d=>d.type?d.place:null),exerciseLibrary:Object.fromEntries(Object.entries(EX).map(([k,v])=>[k,v.n])),rememberedNotes:S.notes.items};
+  return{today,weekday:WDL[wdOf(today)],settings:S.settings,uniTimetableNext14Days:[...Array(14)].map((_,i)=>addDays(today,i)).flatMap(d=>feedOn(d).map(e=>({date:d,start:e[1],end:e[2],title:e[4],kind:e[6]}))),examPeriods:S.feed?S.feed.examPeriods:[],moodleDeadlines:deadlinesAhead().slice(0,10).map(x=>({date:x[0],time:x[1],course:x[2],title:x[3]})),classes:S.timetable.classes.map(({id,day,start,end,title,room,kind})=>({id,day,start,end,title,room,kind})),exams:S.timetable.exams,thisWeek:pl.days.map(d=>({date:d.date,day:WD[d.wd],workout:d.type,gymAt:d.type&&d.slot?toT(d.slot.start):null})),sleepLast7:[...Array(7)].map((_,i)=>sleepFor(addDays(today,-i))).filter(Boolean),readinessToday:r?{bodyScore:r.score}:null,todayLevel:(()=>{const dz=doseFor(today);return{level:dz.level,why:dz.text,head:dz.mind.why}})(),recentWorkouts:recent,program:Object.fromEntries(Object.keys(TYPES).map(t=>[t,programFor(t).map(i=>({ex:i.ex,sets:i.sets,reps:`${i.repMin}-${i.repMax}`}))])),homeWorkouts:Object.fromEntries(Object.keys(TYPES).map(t=>[t,programFor(t,'home').map(i=>i.ex)])),thisWeekPlaces:pl.days.map(d=>d.type?d.place:null),exerciseLibrary:Object.fromEntries(Object.entries(EX).map(([k,v])=>[k,v.n])),rememberedNotes:S.notes.items};
 }
 const COACH_RULES=ctx=>`You are the coach inside Rep Rhythm, a phone app that plans one university student's gym training and daily routine around their timetable and Garmin sleep data.
 Speak simply and briefly: short sentences, no jargon, at most about 90 words. Explain the reason first, then the numbers. Reply in the language the person writes in.
